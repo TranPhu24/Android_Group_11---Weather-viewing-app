@@ -1,6 +1,6 @@
 # Android_Group_11---Weather-viewing-app
 
-# tiến độ: https://1drv.ms/w/c/8c38ac15479b7ff7/IQDGkBdYzLZCRqaGSOdfoS4mAQqz1L_7mScFd3Kbgf85KZM?e=6qEU9p
+# (*)Tiến độ: https://1drv.ms/w/c/8c38ac15479b7ff7/IQDGkBdYzLZCRqaGSOdfoS4mAQqz1L_7mScFd3Kbgf85KZM?e=6qEU9p
 
 # lên ý tưởng và yêu cầu: https://1drv.ms/w/c/8c38ac15479b7ff7/IQC7rfyI_gBJSYRZK2WQ6MyEASJBL4FmGDFIENOOopwTfiQ?e=8zEwtC
 
