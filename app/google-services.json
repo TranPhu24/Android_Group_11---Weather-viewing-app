@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1024508055025",
+    "project_id": "vn-edu-student-weathervi-c4210",
+    "storage_bucket": "vn-edu-student-weathervi-c4210.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1024508055025:android:532faeace72a76aeefc850",
+        "android_client_info": {
+          "package_name": "vn.edu.student.weatherviewingapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCqYJOM3C7XNotZrhHSLWRqqIiBlNBwjtM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
