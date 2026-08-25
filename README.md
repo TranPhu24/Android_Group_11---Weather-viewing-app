@@ -20,13 +20,13 @@
 
 **Weather Viewing App** là ứng dụng Android cho phép người dùng:
 
-* Tìm kiếm địa điểm/thành phố.
-* Xem thời tiết hiện tại.
-* Xem dự báo thời tiết.
-* Lấy thông tin thời tiết theo vị trí GPS.
-* Theo dõi nhiệt độ, độ ẩm và tốc độ gió.
-* Hiển thị tình trạng và biểu tượng thời tiết.
-* Quản lý các địa điểm yêu thích.
+- Tìm kiếm địa điểm/thành phố.
+- Xem thời tiết hiện tại.
+- Xem dự báo thời tiết.
+- Lấy thông tin thời tiết theo vị trí GPS.
+- Theo dõi nhiệt độ, độ ẩm và tốc độ gió.
+- Hiển thị tình trạng và biểu tượng thời tiết.
+- Quản lý các địa điểm yêu thích.
 
 ---
 
@@ -131,27 +131,27 @@ WeatherBundle
 
 ## Phần cứng
 
-* Máy tính có thể chạy Android Studio.
-* Android Emulator hoặc thiết bị Android thật.
-* Kết nối Internet.
+- Máy tính có thể chạy Android Studio.
+- Android Emulator hoặc thiết bị Android thật.
+- Kết nối Internet.
 
 ## Phần mềm
 
-* **Android Studio:** Phiên bản tương thích với project.
-* **Kotlin:** Ngôn ngữ lập trình chính.
-* **Android SDK:** Phiên bản được cấu hình trong project.
-* **Gradle:** Sử dụng Gradle Wrapper của project.
-* **WeatherAPI:** API key hợp lệ.
+- **Android Studio:** Phiên bản tương thích với project.
+- **Kotlin:** Ngôn ngữ lập trình chính.
+- **Android SDK:** Phiên bản được cấu hình trong project.
+- **Gradle:** Sử dụng Gradle Wrapper của project.
+- **WeatherAPI:** API key hợp lệ.
 
 ## Công cụ & Dependency
 
-* Kotlin
-* Android SDK
-* Android Studio
-* Gradle
-* WeatherAPI
-* JSON
-* Android HTTP Networking
+- Kotlin
+- Android SDK
+- Android Studio
+- Gradle
+- WeatherAPI
+- JSON
+- Android HTTP Networking
 
 ---
 
@@ -219,25 +219,24 @@ Sau khi đăng ký và đăng nhập, API key sẽ được cung cấp trong tà
 
 ---
 
-
 # Kiểm thử
 
 ## Functional Test
 
 Kiểm tra các chức năng chính:
 
-* Tìm kiếm thành phố hợp lệ.
-* Tìm kiếm thành phố không tồn tại.
-* Xem thông tin thời tiết hiện tại.
-* Xem dự báo thời tiết.
-* Lấy thời tiết theo vị trí GPS.
-* Hiển thị nhiệt độ.
-* Hiển thị độ ẩm.
-* Hiển thị tốc độ gió.
-* Hiển thị tình trạng thời tiết.
-* Hiển thị biểu tượng thời tiết.
-* Thêm địa điểm yêu thích.
-* Xóa địa điểm yêu thích.
+- Tìm kiếm thành phố hợp lệ.
+- Tìm kiếm thành phố không tồn tại.
+- Xem thông tin thời tiết hiện tại.
+- Xem dự báo thời tiết.
+- Lấy thời tiết theo vị trí GPS.
+- Hiển thị nhiệt độ.
+- Hiển thị độ ẩm.
+- Hiển thị tốc độ gió.
+- Hiển thị tình trạng thời tiết.
+- Hiển thị biểu tượng thời tiết.
+- Thêm địa điểm yêu thích.
+- Xóa địa điểm yêu thích.
 
 ---
 
@@ -245,12 +244,12 @@ Kiểm tra các chức năng chính:
 
 Kiểm tra các trường hợp:
 
-* Người dùng nhập tên thành phố không tồn tại.
-* Query rỗng.
-* Tọa độ GPS không hợp lệ.
-* API key không hợp lệ.
-* API trả về dữ liệu lỗi.
-* Response không chứa đầy đủ trường dữ liệu cần thiết.
+- Người dùng nhập tên thành phố không tồn tại.
+- Query rỗng.
+- Tọa độ GPS không hợp lệ.
+- API key không hợp lệ.
+- API trả về dữ liệu lỗi.
+- Response không chứa đầy đủ trường dữ liệu cần thiết.
 
 ---
 
@@ -258,11 +257,11 @@ Kiểm tra các trường hợp:
 
 Kiểm tra ứng dụng khi:
 
-* Thiết bị không có Internet.
-* Kết nối Internet bị gián đoạn.
-* WeatherAPI không phản hồi.
-* Request bị timeout.
-* WeatherAPI trả về HTTP error.
+- Thiết bị không có Internet.
+- Kết nối Internet bị gián đoạn.
+- WeatherAPI không phản hồi.
+- Request bị timeout.
+- WeatherAPI trả về HTTP error.
 
 Ứng dụng phải xử lý exception phù hợp và **không bị crash**.
 
@@ -274,10 +273,10 @@ Thực hiện nhiều request tìm kiếm và truy vấn thời tiết liên ti�
 
 Các trường hợp:
 
-* Nhiều lần tìm kiếm thành phố liên tiếp.
-* Liên tục chuyển đổi giữa các địa điểm.
-* Liên tục cập nhật dữ liệu thời tiết.
-* Nhiều request API trong thời gian ngắn.
+- Nhiều lần tìm kiếm thành phố liên tiếp.
+- Liên tục chuyển đổi giữa các địa điểm.
+- Liên tục cập nhật dữ liệu thời tiết.
+- Nhiều request API trong thời gian ngắn.
 
 ---
 
@@ -285,12 +284,12 @@ Các trường hợp:
 
 Đánh giá:
 
-* Thời gian gửi request.
-* Thời gian nhận response.
-* Thời gian xử lý JSON.
-* Thời gian tải icon thời tiết.
-* Thời gian hiển thị dữ liệu lên giao diện.
-* Mức độ ổn định khi sử dụng trong thời gian dài.
+- Thời gian gửi request.
+- Thời gian nhận response.
+- Thời gian xử lý JSON.
+- Thời gian tải icon thời tiết.
+- Thời gian hiển thị dữ liệu lên giao diện.
+- Mức độ ổn định khi sử dụng trong thời gian dài.
 
 **Bằng chứng kiểm thử:**
 
@@ -302,8 +301,8 @@ Extra/
 
 # Demo
 
-| Tài liệu      | Vị trí                |
-| ------------- | --------------------- |
+| Tài liệu   | Vị trí                |
+| ---------- | --------------------- |
 | Video Demo | Public / Unlisted URL |
 | Slide      | `PPTX/`               |
 | Báo cáo    | `DOCX/`               |
@@ -312,16 +311,16 @@ Extra/
 
 # Giới hạn
 
-* Ứng dụng phụ thuộc trực tiếp vào WeatherAPI.
-* Cần kết nối Internet để lấy dữ liệu thời tiết.
-* Nếu WeatherAPI không hoạt động hoặc API key hết hạn, dữ liệu thời tiết không thể được cập nhật.
-* API key cần được bảo vệ và không được commit trực tiếp vào repository.
-* Ứng dụng không có Backend Server riêng.
-* Android Client gọi trực tiếp đến WeatherAPI.
-* Chưa có hệ thống tài khoản và xác thực người dùng riêng.
-* Chưa hỗ trợ đồng bộ dữ liệu giữa nhiều thiết bị.
-* Dữ liệu thời tiết phụ thuộc vào dữ liệu do WeatherAPI cung cấp.
-* Chức năng GPS phụ thuộc vào quyền truy cập vị trí và khả năng định vị của thiết bị.
+- Ứng dụng phụ thuộc trực tiếp vào WeatherAPI.
+- Cần kết nối Internet để lấy dữ liệu thời tiết.
+- Nếu WeatherAPI không hoạt động hoặc API key hết hạn, dữ liệu thời tiết không thể được cập nhật.
+- API key cần được bảo vệ và không được commit trực tiếp vào repository.
+- Ứng dụng không có Backend Server riêng.
+- Android Client gọi trực tiếp đến WeatherAPI.
+- Chưa có hệ thống tài khoản và xác thực người dùng riêng.
+- Chưa hỗ trợ đồng bộ dữ liệu giữa nhiều thiết bị.
+- Dữ liệu thời tiết phụ thuộc vào dữ liệu do WeatherAPI cung cấp.
+- Chức năng GPS phụ thuộc vào quyền truy cập vị trí và khả năng định vị của thiết bị.
 
 ---
 
@@ -330,9 +329,11 @@ Extra/
 ```text
 Android_Group_11---Weather-viewing-app/
 │
-├── app/                    # Android application
-│
-├── gradle/                 # Gradle configuration
+|── Code/                   # Source code
+│      │
+│      ├── app/             # Android application
+│      │
+│      ├── gradle/          # Gradle configuration
 │
 ├── PPTX/                   # Presentation
 │
@@ -342,10 +343,10 @@ Android_Group_11---Weather-viewing-app/
 │
 └── README.md
 ```
+
 ---
 
-
-# Link 
+# Link
 
 # (\*)Tiến độ: https://1drv.ms/w/c/8c38ac15479b7ff7/IQDGkBdYzLZCRqaGSOdfoS4mAQqz1L_7mScFd3Kbgf85KZM?e=6qEU9p
 
