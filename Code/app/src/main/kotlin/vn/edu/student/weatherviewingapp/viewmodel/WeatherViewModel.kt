@@ -1,4 +1,4 @@
-package vn.edu.student.weatherviewingapp
+package vn.edu.student.weatherviewingapp.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -8,12 +8,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import vn.edu.student.weatherviewingapp.data.LocationResult
-import vn.edu.student.weatherviewingapp.data.WeatherRepository
+import vn.edu.student.weatherviewingapp.repository.WeatherRepository
 import vn.edu.student.weatherviewingapp.data.WeatherResponse
+import vn.edu.student.weatherviewingapp.ui.WeatherUiState
 
 class WeatherViewModel : ViewModel() {
     private val repository = WeatherRepository()
-    
+
     private val _uiState = MutableStateFlow<WeatherUiState>(WeatherUiState.Initial)
     val uiState: StateFlow<WeatherUiState> = _uiState.asStateFlow()
 
@@ -74,7 +75,7 @@ class WeatherViewModel : ViewModel() {
     private suspend fun fetchFullWeatherData(weather: WeatherResponse) {
         val forecastDeferred = viewModelScope.async { repository.getForecast(weather.cityName, apiKey) }
         val pollutionDeferred = viewModelScope.async { repository.getAirPollution(weather.coord.lat, weather.coord.lon, apiKey) }
-        
+
         _uiState.value = WeatherUiState.Success(
             weather = weather,
             forecast = forecastDeferred.await(),

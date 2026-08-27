@@ -1,13 +1,10 @@
-package vn.edu.student.weatherviewingapp
+package vn.edu.student.weatherviewingapp.ui.screens
 
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -32,6 +29,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -43,8 +41,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.delay
+import vn.edu.student.weatherviewingapp.ui.WeatherUiState
+import vn.edu.student.weatherviewingapp.viewmodel.WeatherViewModel
 import vn.edu.student.weatherviewingapp.data.ForecastItem
-import vn.edu.student.weatherviewingapp.data.WeatherResponse
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -396,7 +395,7 @@ fun ForecastRow(item: ForecastItem, dayLabel: String) {
             modifier = Modifier.weight(1f),
             color = Color.White.copy(alpha = 0.8f),
             fontSize = 16.sp,
-            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+            fontStyle = FontStyle.Italic
         )
         Text(
             text = "${item.main.tempMax.toInt()}° / ${item.main.tempMin.toInt()}°",

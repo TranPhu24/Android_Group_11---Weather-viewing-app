@@ -1,8 +1,8 @@
-package vn.edu.student.weatherviewingapp
+package vn.edu.student.weatherviewingapp.ui
 
-import vn.edu.student.weatherviewingapp.data.WeatherResponse
-import vn.edu.student.weatherviewingapp.data.ForecastResponse
 import vn.edu.student.weatherviewingapp.data.AirPollutionResponse
+import vn.edu.student.weatherviewingapp.data.ForecastResponse
+import vn.edu.student.weatherviewingapp.data.WeatherResponse
 
 sealed interface WeatherUiState {
     object Initial : WeatherUiState

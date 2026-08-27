@@ -1,13 +1,18 @@
-package vn.edu.student.weatherviewingapp.data
+package vn.edu.student.weatherviewingapp.repository
 
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
+import vn.edu.student.weatherviewingapp.data.AirPollutionResponse
+import vn.edu.student.weatherviewingapp.data.ForecastResponse
+import vn.edu.student.weatherviewingapp.data.LocationResult
+import vn.edu.student.weatherviewingapp.data.WeatherApi
+import vn.edu.student.weatherviewingapp.data.WeatherResponse
 
 class WeatherRepository {
     private val json = Json { ignoreUnknownKeys = true }
-    
+
     private val retrofit = Retrofit.Builder()
         .baseUrl("https://api.openweathermap.org/data/2.5/")
         .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
@@ -32,7 +37,7 @@ class WeatherRepository {
         // Increasing limit to 50 to get more districts/wards
         val search1 = weatherApi.searchLocations("$query, Vietnam", 50, apiKey)
         val search2 = weatherApi.searchLocations(query, 50, apiKey).filter { it.country == "VN" }
-        
+
         // Merge and remove duplicates
         return (search1 + search2).distinctBy { "${it.lat},${it.lon}" }
     }
