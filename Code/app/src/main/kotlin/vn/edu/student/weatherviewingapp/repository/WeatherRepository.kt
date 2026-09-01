@@ -28,6 +28,10 @@ class WeatherRepository {
         return weatherApi.getForecast(city, apiKey)
     }
 
+    suspend fun getForecastByCoords(lat: Double, lon: Double, apiKey: String): ForecastResponse {
+        return weatherApi.getForecastByCoords(lat, lon, apiKey)
+    }
+
     suspend fun getAirPollution(lat: Double, lon: Double, apiKey: String): AirPollutionResponse {
         return weatherApi.getAirPollution(lat, lon, apiKey)
     }

@@ -9,10 +9,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import vn.edu.student.weatherviewingapp.ui.screens.WeatherScreen
 import vn.edu.student.weatherviewingapp.ui.theme.WeatherViewingAppTheme
+import vn.edu.student.weatherviewingapp.worker.WeatherRefreshScheduler
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WeatherRefreshScheduler.schedule(this)
         setContent {
             WeatherViewingAppTheme {
                 // A surface container using the 'background' color from the theme
