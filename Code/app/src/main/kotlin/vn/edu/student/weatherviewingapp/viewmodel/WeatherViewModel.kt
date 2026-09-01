@@ -10,6 +10,7 @@ import kotlinx.coroutines.launch
 import vn.edu.student.weatherviewingapp.data.LocationResult
 import vn.edu.student.weatherviewingapp.repository.WeatherRepository
 import vn.edu.student.weatherviewingapp.data.WeatherResponse
+import vn.edu.student.weatherviewingapp.BuildConfig
 import vn.edu.student.weatherviewingapp.ui.WeatherUiState
 
 class WeatherViewModel : ViewModel() {
@@ -22,7 +23,7 @@ class WeatherViewModel : ViewModel() {
     val suggestions: StateFlow<List<LocationResult>> = _suggestions.asStateFlow()
 
     // Your API Key
-    private val apiKey = "0fd5b4d98bdbaca7ce5be44bb322d34f"
+    private val apiKey = BuildConfig.WEATHER_API_KEY
 
     fun searchLocations(query: String) {
         if (query.length < 2) {

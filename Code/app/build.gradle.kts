@@ -11,12 +11,15 @@ android {
 
     defaultConfig {
         applicationId = "vn.edu.student.weatherviewingapp"
-        minSdk = 34
+        minSdk = 30
         targetSdk = 37
         versionCode = 1
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "WEATHER_API_KEY",
+            "\"${project.findProperty("WEATHER_API_KEY")}\"")
     }
 
     buildTypes {
@@ -32,6 +35,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -53,6 +57,8 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.play.services.location)
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation("com.google.code.gson:gson:2.10.1")
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
