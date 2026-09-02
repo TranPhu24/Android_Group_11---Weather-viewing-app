@@ -8,16 +8,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import vn.edu.student.weatherviewingapp.BuildConfig
 import vn.edu.student.weatherviewingapp.data.LocationResult
 import vn.edu.student.weatherviewingapp.data.WeatherCache
 import vn.edu.student.weatherviewingapp.data.WeatherSnapshot
 import vn.edu.student.weatherviewingapp.repository.WeatherRepository
 import vn.edu.student.weatherviewingapp.data.WeatherResponse
 import vn.edu.student.weatherviewingapp.ui.WeatherUiState
-
-object WeatherConfig {
-    const val OPEN_WEATHER_API_KEY = "0fd5b4d98bdbaca7ce5be44bb322d34f"
-}
 
 class WeatherViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = WeatherRepository()
@@ -29,7 +26,7 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
     private val _suggestions = MutableStateFlow<List<LocationResult>>(emptyList())
     val suggestions: StateFlow<List<LocationResult>> = _suggestions.asStateFlow()
 
-    private val apiKey = WeatherConfig.OPEN_WEATHER_API_KEY
+    private val apiKey = BuildConfig.OPEN_WEATHER_API_KEY
 
     init {
         weatherCache.load()?.let { cached ->
@@ -102,7 +99,7 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
 
     private fun isApiKeyInvalid(): Boolean {
         if (apiKey == "YOUR_API_KEY_HERE" || apiKey.isBlank()) {
-            _uiState.value = WeatherUiState.Error("Please provide a valid OpenWeatherMap API Key in WeatherViewModel.kt")
+            _uiState.value = WeatherUiState.Error("Please provide OPEN_WEATHER_API_KEY in local.properties")
             return true
         }
         return false
