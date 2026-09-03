@@ -21,7 +21,7 @@ android {
 
     defaultConfig {
         applicationId = "vn.edu.student.weatherviewingapp"
-        minSdk = 34
+        minSdk = 30
         targetSdk = 37
         versionCode = 1
         versionName = "1.0"
@@ -73,4 +73,6 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation("com.google.code.gson:gson:2.10.1")
 }
