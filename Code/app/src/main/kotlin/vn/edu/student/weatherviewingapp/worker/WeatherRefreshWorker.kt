@@ -24,14 +24,14 @@ class WeatherRefreshWorker(
                 val weather = WeatherRepository().getWeatherByCoords(
                     previousSnapshot.weather.coord.lat,
                     previousSnapshot.weather.coord.lon,
-                    BuildConfig.OPEN_WEATHER_API_KEY
+                    BuildConfig.WEATHER_API_KEY
                 )
                 val repository = WeatherRepository()
                 val forecast = async {
-                    repository.getForecastByCoords(weather.coord.lat, weather.coord.lon, BuildConfig.OPEN_WEATHER_API_KEY)
+                    repository.getForecastByCoords(weather.coord.lat, weather.coord.lon, BuildConfig.WEATHER_API_KEY)
                 }
                 val airPollution = async {
-                    repository.getAirPollution(weather.coord.lat, weather.coord.lon, BuildConfig.OPEN_WEATHER_API_KEY)
+                    repository.getAirPollution(weather.coord.lat, weather.coord.lon, BuildConfig.WEATHER_API_KEY)
                 }
                 WeatherSnapshot(weather, forecast.await(), airPollution.await())
             }

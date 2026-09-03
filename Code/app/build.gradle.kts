@@ -13,7 +13,7 @@ val localProperties = Properties().apply {
         localPropertiesFile.inputStream().use(::load)
     }
 }
-val openWeatherApiKey = localProperties.getProperty("OPEN_WEATHER_API_KEY", "")
+val openWeatherApiKey = localProperties.getProperty("WEATHER_API_KEY", "")
 
 android {
     namespace = "vn.edu.student.weatherviewingapp"
@@ -25,7 +25,7 @@ android {
         targetSdk = 37
         versionCode = 1
         versionName = "1.0"
-        buildConfigField("String", "OPEN_WEATHER_API_KEY", "\"$openWeatherApiKey\"")
+        buildConfigField("String", "WEATHER_API_KEY", "\"$openWeatherApiKey\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

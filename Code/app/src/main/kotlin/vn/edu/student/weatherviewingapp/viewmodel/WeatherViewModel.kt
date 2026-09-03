@@ -26,7 +26,7 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
     private val _suggestions = MutableStateFlow<List<LocationResult>>(emptyList())
     val suggestions: StateFlow<List<LocationResult>> = _suggestions.asStateFlow()
 
-    private val apiKey = BuildConfig.OPEN_WEATHER_API_KEY
+    private val apiKey = BuildConfig.WEATHER_API_KEY
 
     init {
         weatherCache.load()?.let { cached ->
