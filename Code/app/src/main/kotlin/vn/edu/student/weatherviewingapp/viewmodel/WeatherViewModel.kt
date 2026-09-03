@@ -1,20 +1,24 @@
 package vn.edu.student.weatherviewingapp.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import vn.edu.student.weatherviewingapp.BuildConfig
 import vn.edu.student.weatherviewingapp.data.LocationResult
+import vn.edu.student.weatherviewingapp.data.WeatherCache
+import vn.edu.student.weatherviewingapp.data.WeatherSnapshot
 import vn.edu.student.weatherviewingapp.repository.WeatherRepository
 import vn.edu.student.weatherviewingapp.data.WeatherResponse
-import vn.edu.student.weatherviewingapp.BuildConfig
 import vn.edu.student.weatherviewingapp.ui.WeatherUiState
 
-class WeatherViewModel : ViewModel() {
+class WeatherViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = WeatherRepository()
+    private val weatherCache = WeatherCache(application)
 
     private val _uiState = MutableStateFlow<WeatherUiState>(WeatherUiState.Initial)
     val uiState: StateFlow<WeatherUiState> = _uiState.asStateFlow()
@@ -22,8 +26,13 @@ class WeatherViewModel : ViewModel() {
     private val _suggestions = MutableStateFlow<List<LocationResult>>(emptyList())
     val suggestions: StateFlow<List<LocationResult>> = _suggestions.asStateFlow()
 
-    // Your API Key
     private val apiKey = BuildConfig.WEATHER_API_KEY
+
+    init {
+        weatherCache.load()?.let { cached ->
+            _uiState.value = WeatherUiState.Success(cached.weather, cached.forecast, cached.airPollution)
+        }
+    }
 
     fun searchLocations(query: String) {
         if (query.length < 2) {
@@ -74,19 +83,23 @@ class WeatherViewModel : ViewModel() {
     }
 
     private suspend fun fetchFullWeatherData(weather: WeatherResponse) {
-        val forecastDeferred = viewModelScope.async { repository.getForecast(weather.cityName, apiKey) }
+        val forecastDeferred = viewModelScope.async {
+            repository.getForecastByCoords(weather.coord.lat, weather.coord.lon, apiKey)
+        }
         val pollutionDeferred = viewModelScope.async { repository.getAirPollution(weather.coord.lat, weather.coord.lon, apiKey) }
 
-        _uiState.value = WeatherUiState.Success(
+        val snapshot = WeatherSnapshot(
             weather = weather,
             forecast = forecastDeferred.await(),
             airPollution = pollutionDeferred.await()
         )
+        weatherCache.save(snapshot)
+        _uiState.value = WeatherUiState.Success(snapshot.weather, snapshot.forecast, snapshot.airPollution)
     }
 
     private fun isApiKeyInvalid(): Boolean {
         if (apiKey == "YOUR_API_KEY_HERE" || apiKey.isBlank()) {
-            _uiState.value = WeatherUiState.Error("Please provide a valid OpenWeatherMap API Key in WeatherViewModel.kt")
+            _uiState.value = WeatherUiState.Error("Please provide OPEN_WEATHER_API_KEY in local.properties")
             return true
         }
         return false
