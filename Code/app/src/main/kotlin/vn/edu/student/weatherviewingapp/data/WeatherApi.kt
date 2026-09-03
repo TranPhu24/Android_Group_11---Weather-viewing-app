@@ -18,6 +18,14 @@ interface WeatherApi {
         @Query("units") units: String = "metric"
     ): ForecastResponse
 
+    @GET("forecast")
+    suspend fun getForecastByCoords(
+        @Query("lat") lat: Double,
+        @Query("lon") lon: Double,
+        @Query("appid") apiKey: String,
+        @Query("units") units: String = "metric"
+    ): ForecastResponse
+
     @GET("air_pollution")
     suspend fun getAirPollution(
         @Query("lat") lat: Double,
