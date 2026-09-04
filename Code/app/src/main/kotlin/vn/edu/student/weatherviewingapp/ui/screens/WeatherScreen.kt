@@ -3,6 +3,7 @@ package vn.edu.student.weatherviewingapp.ui.screens
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -43,6 +44,8 @@ import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.delay
 import vn.edu.student.weatherviewingapp.ui.WeatherUiState
 import vn.edu.student.weatherviewingapp.viewmodel.WeatherViewModel
+import vn.edu.student.weatherviewingapp.alerts.WeatherAlertSettings
+import vn.edu.student.weatherviewingapp.alerts.WeatherAlertSettingsStore
 import vn.edu.student.weatherviewingapp.data.ForecastItem
 import java.text.SimpleDateFormat
 import java.util.*
@@ -56,6 +59,9 @@ fun WeatherScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     var cityInput by rememberSaveable { mutableStateOf("") }
     var showSearch by remember { mutableStateOf(false) }
+    var showAlertSettings by rememberSaveable { mutableStateOf(false) }
+    val alertSettingsStore = remember(context) { WeatherAlertSettingsStore(context) }
+    var alertSettings by remember { mutableStateOf(alertSettingsStore.load()) }
     val uiState by viewModel.uiState.collectAsState()
     val suggestions by viewModel.suggestions.collectAsState()
     val focusRequester = remember { FocusRequester() }
@@ -80,6 +86,10 @@ fun WeatherScreen(
         }
     }
 
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -100,7 +110,7 @@ fun WeatherScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (showSearch) {
-                        IconButton(onClick = { 
+                        IconButton(onClick = {
                             showSearch = false
                             cityInput = ""
                             viewModel.clearSuggestions()
@@ -110,7 +120,7 @@ fun WeatherScreen(
                         }
                         TextField(
                             value = cityInput,
-                            onValueChange = { 
+                            onValueChange = {
                                 cityInput = it
                                 viewModel.searchLocations(it)
                             },
@@ -143,7 +153,7 @@ fun WeatherScreen(
                             singleLine = true
                         )
                         if (cityInput.isNotEmpty()) {
-                            IconButton(onClick = { 
+                            IconButton(onClick = {
                                 cityInput = ""
                                 viewModel.clearSuggestions()
                             }) {
@@ -151,7 +161,7 @@ fun WeatherScreen(
                             }
                         }
                     } else {
-                        IconButton(onClick = { 
+                        IconButton(onClick = {
                             if (hasLocationPermission(context)) {
                                 getCurrentLocation(context) { lat, lon ->
                                     viewModel.fetchWeatherByCoords(lat, lon)
@@ -164,7 +174,7 @@ fun WeatherScreen(
                         }) {
                             Icon(Icons.Default.MyLocation, contentDescription = "Vị trí của tôi", tint = Color.White)
                         }
-                        
+
                         val title = when (val state = uiState) {
                             is WeatherUiState.Success -> state.weather.cityName
                             else -> "Thời tiết"
@@ -180,6 +190,9 @@ fun WeatherScreen(
 
                         IconButton(onClick = { showSearch = true }) {
                             Icon(Icons.Default.Search, contentDescription = "Tìm kiếm", tint = Color.White)
+                        }
+                        IconButton(onClick = { showAlertSettings = true }) {
+                            Icon(Icons.Default.Notifications, contentDescription = "Cảnh báo thời tiết", tint = Color.White)
                         }
                     }
                 }
@@ -227,7 +240,7 @@ fun WeatherScreen(
                                 items(suggestions) { loc ->
                                     val nameVi = loc.localNames?.get("vi") ?: loc.name
                                     val stateInfo = if (loc.state != null) ", ${loc.state}" else ""
-                                    
+
                                     Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -256,11 +269,28 @@ fun WeatherScreen(
             }
         }
     }
+
+    if (showAlertSettings) {
+        WeatherAlertSettingsDialog(
+            settings = alertSettings,
+            onDismiss = { showAlertSettings = false },
+            onSave = { updatedSettings ->
+                alertSettingsStore.save(updatedSettings)
+                alertSettings = updatedSettings
+                showAlertSettings = false
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                    ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                ) {
+                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
+        )
+    }
 }
 
 private fun hasLocationPermission(context: Context): Boolean {
     return ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
-           ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
 }
 
 private fun getCurrentLocation(context: Context, onLocationFound: (Double, Double) -> Unit) {
@@ -278,7 +308,7 @@ private fun getCurrentLocation(context: Context, onLocationFound: (Double, Doubl
 fun WeatherContent(state: WeatherUiState.Success) {
     val weather = state.weather
     val main = weather.main
-    
+
     Spacer(modifier = Modifier.height(20.dp))
 
     Text(
@@ -363,11 +393,11 @@ fun WeatherContent(state: WeatherUiState.Success) {
             HorizontalDivider(color = Color.White.copy(alpha = 0.2f), modifier = Modifier.padding(vertical = 12.dp))
             Row(modifier = Modifier.fillMaxWidth()) {
                 StatItem(Modifier.weight(1f), "Cao nhất", "${main.tempMax.toInt()}°")
-                StatItem(Modifier.weight(1f), "Tốc độ gió", "${weather.wind.speed.toInt()}km/h")
+                StatItem(Modifier.weight(1f), "Tốc độ gió", "${(weather.wind.speed * 3.6).toInt()} km/h")
             }
         }
     }
-    
+
     Spacer(modifier = Modifier.height(40.dp))
 }
 
