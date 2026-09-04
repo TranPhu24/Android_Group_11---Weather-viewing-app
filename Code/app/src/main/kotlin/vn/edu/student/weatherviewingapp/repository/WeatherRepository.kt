@@ -37,13 +37,30 @@ class WeatherRepository {
     }
 
     suspend fun searchLocations(query: String, apiKey: String): List<LocationResult> {
-        // Try multiple query formats to get the best results for Vietnam
-        // Increasing limit to 50 to get more districts/wards
-        val search1 = weatherApi.searchLocations("$query, Vietnam", 50, apiKey)
-        val search2 = weatherApi.searchLocations(query, 50, apiKey).filter { it.country == "VN" }
+        return try {
+            // Call API with national key VN
+            val searchVn = try { weatherApi.searchLocations("$query,VN", 50, apiKey) } catch (e: Exception) { emptyList() }
 
-        // Merge and remove duplicates
-        return (search1 + search2).distinctBy { "${it.lat},${it.lon}" }
+            // Tìm kiếm chung đề phòng trường hợp API sót kết quả
+            val searchGlobal = try { weatherApi.searchLocations(query, 50, apiKey) } catch (e: Exception) { emptyList() }
+
+            // Gộp kết quả, chỉ lấy VN
+            val combinedResults = (searchVn + searchGlobal)
+                .filter { it.country.equals("VN", ignoreCase = true) }
+                .distinctBy { "${it.lat},${it.lon}" }
+
+            // 4. Sắp xếp ưu tiên:
+            combinedResults.sortedWith(compareBy(
+                {
+                    val nameMatch = it.name.startsWith(query, ignoreCase = true)
+                    val localMatch = it.localNames?.get("vi")?.startsWith(query, ignoreCase = true) ?: false
+                    !(nameMatch || localMatch) // false (0) ưu tiên xếp trước true (1)
+                },
+                { it.name.length }
+            ))
+        } catch (e: Exception) {
+            emptyList()
+        }
     }
 
     suspend fun getWeatherByCoords(lat: Double, lon: Double, apiKey: String): WeatherResponse {

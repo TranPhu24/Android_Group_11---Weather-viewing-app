@@ -225,9 +225,16 @@ fun WeatherScreen(
                         if (suggestions.isNotEmpty()) {
                             LazyColumn(modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp)) {
                                 items(suggestions) { loc ->
+                                    // Ưu tiên lấy tên tiếng Việt, nếu không có thì lấy tên gốc
                                     val nameVi = loc.localNames?.get("vi") ?: loc.name
-                                    val stateInfo = if (loc.state != null) ", ${loc.state}" else ""
-                                    
+
+                                    // Kiểm tra state để tránh lặp chữ (Vd: Hà Nội, Hanoi)
+                                    val stateInfo = if (!loc.state.isNullOrEmpty() && loc.state != loc.name && loc.state != nameVi) {
+                                        ", ${loc.state}"
+                                    } else {
+                                        ""
+                                    }
+
                                     Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -240,11 +247,23 @@ fun WeatherScreen(
                                             }
                                             .padding(16.dp)
                                     ) {
-                                        Text(text = "$nameVi$stateInfo", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Medium)
-                                        Text(text = "Việt Nam", color = Color.White.copy(alpha = 0.6f), fontSize = 14.sp)
+                                        Text(
+                                            text = "$nameVi$stateInfo",
+                                            color = Color.White,
+                                            fontSize = 18.sp,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        // Vì ở file Repository ta đã lọc tuyệt đối country == "VN",
+                                        // nên việc để "Việt Nam" ở đây lúc này là hoàn toàn chính xác.
+                                        Text(
+                                            text = "Việt Nam",
+                                            color = Color.White.copy(alpha = 0.6f),
+                                            fontSize = 14.sp
+                                        )
                                     }
                                     HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
                                 }
+                                
                             }
                         } else if (cityInput.length >= 2) {
                             Box(modifier = Modifier.fillMaxSize().padding(top = 40.dp), contentAlignment = Alignment.TopCenter) {
@@ -282,8 +301,8 @@ fun WeatherContent(state: WeatherUiState.Success) {
     Spacer(modifier = Modifier.height(20.dp))
 
     Text(
-        text = "${main.temp.toInt()}°",
-        fontSize = 120.sp,
+        text = "${main.temp.toInt()}°C",
+        fontSize = 100.sp,
         fontWeight = FontWeight.Bold,
         color = Color.White
     )
