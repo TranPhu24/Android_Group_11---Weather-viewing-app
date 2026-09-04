@@ -1,5 +1,15 @@
 package vn.edu.student.weatherviewingapp.ui.screens
 
+import android.app.Activity
+import android.widget.Toast
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.IntentSenderRequest
+import com.google.android.gms.common.api.ResolvableApiException
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.LocationSettingsRequest
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -39,7 +49,6 @@ import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
-import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.delay
 import vn.edu.student.weatherviewingapp.ui.WeatherUiState
 import vn.edu.student.weatherviewingapp.viewmodel.WeatherViewModel
@@ -67,6 +76,18 @@ fun WeatherScreen(
             keyboardController?.show()
         }
     }
+    val settingResultRequest = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { activityResult ->
+        if (activityResult.resultCode == Activity.RESULT_OK) {
+            // Người dùng đã nhấn "OK" để bật GPS, tiến hành lấy vị trí
+            getCurrentLocation(context) { lat, lon ->
+                viewModel.fetchWeatherByCoords(lat, lon)
+            }
+        } else {
+            Toast.makeText(context, "Bạn cần bật GPS để sử dụng tính năng này.", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -74,9 +95,12 @@ fun WeatherScreen(
         if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
             permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
         ) {
-            getCurrentLocation(context) { lat, lon ->
+            // Quyền vừa được cấp, tiếp tục kiểm tra xem GPS đã bật chưa
+            checkLocationSettingsAndGetLocation(context, settingResultRequest) { lat, lon ->
                 viewModel.fetchWeatherByCoords(lat, lon)
             }
+        } else {
+            Toast.makeText(context, "Quyền vị trí bị từ chối.", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -151,9 +175,9 @@ fun WeatherScreen(
                             }
                         }
                     } else {
-                        IconButton(onClick = { 
+                        IconButton(onClick = {
                             if (hasLocationPermission(context)) {
-                                getCurrentLocation(context) { lat, lon ->
+                                checkLocationSettingsAndGetLocation(context, settingResultRequest) { lat, lon ->
                                     viewModel.fetchWeatherByCoords(lat, lon)
                                 }
                             } else {
@@ -225,10 +249,10 @@ fun WeatherScreen(
                         if (suggestions.isNotEmpty()) {
                             LazyColumn(modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp)) {
                                 items(suggestions) { loc ->
-                                    // Ưu tiên lấy tên tiếng Việt, nếu không có thì lấy tên gốc
+                                    // Ưu tiên tên VN
                                     val nameVi = loc.localNames?.get("vi") ?: loc.name
 
-                                    // Kiểm tra state để tránh lặp chữ (Vd: Hà Nội, Hanoi)
+                                    //Tránh vòng lặp chữ
                                     val stateInfo = if (!loc.state.isNullOrEmpty() && loc.state != loc.name && loc.state != nameVi) {
                                         ", ${loc.state}"
                                     } else {
@@ -263,7 +287,7 @@ fun WeatherScreen(
                                     }
                                     HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
                                 }
-                                
+
                             }
                         } else if (cityInput.length >= 2) {
                             Box(modifier = Modifier.fillMaxSize().padding(top = 40.dp), contentAlignment = Alignment.TopCenter) {
@@ -276,7 +300,32 @@ fun WeatherScreen(
         }
     }
 }
-
+private fun checkLocationSettingsAndGetLocation(
+    context: Context,
+    settingResultRequest: ActivityResultLauncher<IntentSenderRequest>,
+    onLocationFound: (Double, Double) -> Unit
+) {
+    // Yêu cầu kiểm tra cài đặt vị trí với độ chính xác cao
+    val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000).build()
+    val builder = LocationSettingsRequest.Builder().addLocationRequest(locationRequest).setAlwaysShow(true)
+    val client = LocationServices.getSettingsClient(context)
+    client.checkLocationSettings(builder.build()).addOnSuccessListener {
+        // GPS ĐÃ BẬT, tiến hành lấy vị trí ngay lập tức
+        getCurrentLocation(context, onLocationFound)
+    }.addOnFailureListener { exception ->
+        if (exception is ResolvableApiException) {
+            // GPS ĐANG TẮT, hiển thị hộp thoại (modal) của Google yêu cầu bật GPS
+            try {
+                val intentSenderRequest = IntentSenderRequest.Builder(exception.resolution).build()
+                settingResultRequest.launch(intentSenderRequest)
+            } catch (sendEx: Exception) {
+                Toast.makeText(context, "Không thể mở cài đặt vị trí.", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            Toast.makeText(context, "Thiết bị không hỗ trợ dịch vụ vị trí.", Toast.LENGTH_SHORT).show()
+        }
+    }
+}
 private fun hasLocationPermission(context: Context): Boolean {
     return ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
@@ -284,13 +333,23 @@ private fun hasLocationPermission(context: Context): Boolean {
 
 private fun getCurrentLocation(context: Context, onLocationFound: (Double, Double) -> Unit) {
     val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+    Toast.makeText(context, "Đang lấy vị trí hiện tại...", Toast.LENGTH_SHORT).show()
     try {
-        fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+        fusedLocationClient.getCurrentLocation(
+            Priority.PRIORITY_HIGH_ACCURACY,
+            CancellationTokenSource().token
+        ).addOnSuccessListener { location ->
             if (location != null) {
                 onLocationFound(location.latitude, location.longitude)
+            } else {
+                Toast.makeText(context, "Không lấy được vị trí, thử lại sau.", Toast.LENGTH_SHORT).show()
             }
+        }.addOnFailureListener {
+            Toast.makeText(context, "Lỗi kết nối dịch vụ định vị.", Toast.LENGTH_SHORT).show()
         }
-    } catch (e: SecurityException) { }
+    } catch (e: SecurityException) {
+        Toast.makeText(context, "Chưa được cấp quyền truy cập Vị trí.", Toast.LENGTH_SHORT).show()
+    }
 }
 
 @Composable
