@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import vn.edu.student.weatherviewingapp.BuildConfig
+import vn.edu.student.weatherviewingapp.alerts.WeatherAlertNotifier
 import vn.edu.student.weatherviewingapp.data.LocationResult
 import vn.edu.student.weatherviewingapp.data.WeatherCache
 import vn.edu.student.weatherviewingapp.data.WeatherSnapshot
@@ -94,6 +95,7 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
             airPollution = pollutionDeferred.await()
         )
         weatherCache.save(snapshot)
+        WeatherAlertNotifier.notifyIfNeeded(getApplication(), snapshot)
         _uiState.value = WeatherUiState.Success(snapshot.weather, snapshot.forecast, snapshot.airPollution)
     }
 
