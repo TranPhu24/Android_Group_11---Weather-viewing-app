@@ -1,31 +1,23 @@
 package vn.edu.student.weatherviewingapp.ui.screens
 
-import android.app.Activity
-import android.widget.Toast
-import androidx.activity.result.ActivityResultLauncher
-import androidx.activity.result.IntentSenderRequest
-import com.google.android.gms.common.api.ResolvableApiException
-import com.google.android.gms.location.LocationRequest
-import com.google.android.gms.location.LocationServices
-import com.google.android.gms.location.LocationSettingsRequest
-import com.google.android.gms.location.Priority
-import com.google.android.gms.tasks.CancellationTokenSource
 import android.Manifest
+import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -50,18 +42,22 @@ import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
+import com.google.android.gms.common.api.ResolvableApiException
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.LocationSettingsRequest
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
 import kotlinx.coroutines.delay
-import vn.edu.student.weatherviewingapp.ui.WeatherUiState
-import vn.edu.student.weatherviewingapp.viewmodel.WeatherViewModel
-import vn.edu.student.weatherviewingapp.alerts.WeatherAlertSettings
 import vn.edu.student.weatherviewingapp.alerts.WeatherAlertSettingsStore
 import vn.edu.student.weatherviewingapp.data.ForecastItem
+import vn.edu.student.weatherviewingapp.ui.WeatherUiState
+import vn.edu.student.weatherviewingapp.viewmodel.WeatherViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalMaterial3Api::class)
-
 @Composable
 fun WeatherScreen(
     viewModel: WeatherViewModel = viewModel()
@@ -85,11 +81,11 @@ fun WeatherScreen(
             keyboardController?.show()
         }
     }
+
     val settingResultRequest = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult()
     ) { activityResult ->
         if (activityResult.resultCode == Activity.RESULT_OK) {
-            // Người dùng đã nhấn "OK" để bật GPS, tiến hành lấy vị trí
             getCurrentLocation(context) { lat, lon ->
                 viewModel.fetchWeatherByCoords(lat, lon)
             }
@@ -104,7 +100,6 @@ fun WeatherScreen(
         if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
             permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
         ) {
-            // Quyền vừa được cấp, tiếp tục kiểm tra xem GPS đã bật chưa
             checkLocationSettingsAndGetLocation(context, settingResultRequest) { lat, lon ->
                 viewModel.fetchWeatherByCoords(lat, lon)
             }
@@ -127,7 +122,7 @@ fun WeatherScreen(
             )
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Custom Header
+            // Header
             Surface(
                 color = if (showSearch) Color.Black.copy(alpha = 0.7f) else Color.Transparent,
                 modifier = Modifier.fillMaxWidth().statusBarsPadding()
@@ -250,7 +245,11 @@ fun WeatherScreen(
                             )
                         }
                         IconButton(onClick = { showAlertSettings = true }) {
-                            Icon(Icons.Default.Notifications, contentDescription = "Cảnh báo thời tiết", tint = Color.White)
+                            Icon(
+                                Icons.Default.Notifications,
+                                contentDescription = "Cảnh báo thời tiết",
+                                tint = Color.White
+                            )
                         }
                     }
                 }
@@ -258,7 +257,6 @@ fun WeatherScreen(
 
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 // Main Weather Content
-                val scrollState = rememberScrollState()
                 Column(
                     modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
@@ -273,14 +271,20 @@ fun WeatherScreen(
                             CircularProgressIndicator(color = Color.White)
                         }
                         is WeatherUiState.Success -> {
-                            WeatherContent(state = state,onOpen5DaysForecast = { show5DaysForecast = true })
+                            WeatherContent(
+                                state = state,
+                                onOpen5DaysForecast = { show5DaysForecast = true }
+                            )
                         }
                         is WeatherUiState.Error -> {
                             Spacer(modifier = Modifier.height(100.dp))
                             Text(
                                 text = state.message,
                                 color = Color.White,
-                                modifier = Modifier.padding(16.dp).background(Color.Red.copy(alpha = 0.5f), RoundedCornerShape(8.dp)).padding(8.dp),
+                                modifier = Modifier
+                                    .padding(16.dp)
+                                    .background(Color.Red.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                                    .padding(8.dp),
                                 textAlign = TextAlign.Center
                             )
                         }
@@ -296,10 +300,7 @@ fun WeatherScreen(
                         if (suggestions.isNotEmpty()) {
                             LazyColumn(modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp)) {
                                 items(suggestions) { loc ->
-                                    // Ưu tiên tên VN
                                     val nameVi = loc.localNames?.get("vi") ?: loc.name
-
-                                    //Tránh vòng lặp chữ
                                     val stateInfo = if (!loc.state.isNullOrEmpty() && loc.state != loc.name && loc.state != nameVi) {
                                         ", ${loc.state}"
                                     } else {
@@ -324,8 +325,6 @@ fun WeatherScreen(
                                             fontSize = 18.sp,
                                             fontWeight = FontWeight.Medium
                                         )
-                                        // Vì ở file Repository ta đã lọc tuyệt đối country == "VN",
-                                        // nên việc để "Việt Nam" ở đây lúc này là hoàn toàn chính xác.
                                         Text(
                                             text = "Việt Nam",
                                             color = Color.White.copy(alpha = 0.6f),
@@ -334,7 +333,6 @@ fun WeatherScreen(
                                     }
                                     HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
                                 }
-
                             }
                         } else if (cityInput.length >= 2) {
                             Box(modifier = Modifier.fillMaxSize().padding(top = 40.dp), contentAlignment = Alignment.TopCenter) {
@@ -345,6 +343,8 @@ fun WeatherScreen(
                 }
             }
         }
+
+        // Overlay Màn hình Dự báo 5 ngày (Full Screen)
         if (show5DaysForecast && uiState is WeatherUiState.Success) {
             val successState = uiState as WeatherUiState.Success
             Forecast5DaysScreen(
@@ -354,23 +354,40 @@ fun WeatherScreen(
                 onClose = { show5DaysForecast = false }
             )
         }
+
+        // Dialog Cài đặt Cảnh báo thời tiết
+        if (showAlertSettings) {
+            WeatherAlertSettingsDialog(
+                settings = alertSettings,
+                onDismiss = { showAlertSettings = false },
+                onSave = { updatedSettings ->
+                    alertSettingsStore.save(updatedSettings)
+                    alertSettings = updatedSettings
+                    showAlertSettings = false
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                    ) {
+                        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                }
+            )
+        }
     }
 }
+
+// Hàm kiểm tra Cài đặt vị trí GPS (Bỏ nhãn @Composable)
 private fun checkLocationSettingsAndGetLocation(
     context: Context,
     settingResultRequest: ActivityResultLauncher<IntentSenderRequest>,
     onLocationFound: (Double, Double) -> Unit
 ) {
-    // Yêu cầu kiểm tra cài đặt vị trí với độ chính xác cao
     val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000).build()
     val builder = LocationSettingsRequest.Builder().addLocationRequest(locationRequest).setAlwaysShow(true)
     val client = LocationServices.getSettingsClient(context)
     client.checkLocationSettings(builder.build()).addOnSuccessListener {
-        // GPS ĐÃ BẬT, tiến hành lấy vị trí ngay lập tức
         getCurrentLocation(context, onLocationFound)
     }.addOnFailureListener { exception ->
         if (exception is ResolvableApiException) {
-            // GPS ĐANG TẮT, hiển thị hộp thoại (modal) của Google yêu cầu bật GPS
             try {
                 val intentSenderRequest = IntentSenderRequest.Builder(exception.resolution).build()
                 settingResultRequest.launch(intentSenderRequest)
@@ -381,24 +398,8 @@ private fun checkLocationSettingsAndGetLocation(
             Toast.makeText(context, "Thiết bị không hỗ trợ dịch vụ vị trí.", Toast.LENGTH_SHORT).show()
         }
     }
-
-    if (showAlertSettings) {
-        WeatherAlertSettingsDialog(
-            settings = alertSettings,
-            onDismiss = { showAlertSettings = false },
-            onSave = { updatedSettings ->
-                alertSettingsStore.save(updatedSettings)
-                alertSettings = updatedSettings
-                showAlertSettings = false
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                    ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-                ) {
-                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                }
-            }
-        )
-    }
 }
+
 private fun hasLocationPermission(context: Context): Boolean {
     return ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
@@ -426,7 +427,10 @@ private fun getCurrentLocation(context: Context, onLocationFound: (Double, Doubl
 }
 
 @Composable
-fun WeatherContent(state: WeatherUiState.Success, onOpen5DaysForecast: () -> Unit) {
+fun WeatherContent(
+    state: WeatherUiState.Success,
+    onOpen5DaysForecast: () -> Unit
+) {
     val weather = state.weather
     val main = weather.main
 
@@ -435,163 +439,164 @@ fun WeatherContent(state: WeatherUiState.Success, onOpen5DaysForecast: () -> Uni
         verticalArrangement = Arrangement.SpaceBetween,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-    Column(
-        modifier = Modifier
-            .weight(1f)
-            .fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = "${main.temp.toInt()}°C",
-            fontSize = 100.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.White
-        )
-
-        Text(
-            text = "${weather.weather.firstOrNull()?.main} ${main.tempMax.toInt()}° / ${main.tempMin.toInt()}°",
-            fontSize = 20.sp,
-            color = Color.White,
-            fontWeight = FontWeight.Medium
-        )
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        Surface(
-            color = Color.White.copy(alpha = 0.3f),
-            shape = RoundedCornerShape(20.dp)
+        // Khối giữa: Nhiệt độ & AQI
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                val aqi = state.airPollution.list.firstOrNull()?.main?.aqi ?: 0
-                val aqiText = when (aqi) {
-                    1 -> "Tốt"
-                    2 -> "Khá"
-                    3 -> "Trung bình"
-                    4 -> "Kém"
-                    5 -> "Rất kém"
-                    else -> "Không rõ"
-                }
-                Icon(
-                    Icons.Default.Cloud,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = Color.White
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(text = "AQI $aqi - $aqiText", color = Color.White, fontSize = 14.sp)
-            }
-        }
-    }
+            Text(
+                text = "${main.temp.toInt()}°C",
+                fontSize = 90.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        GlassCard {
-            Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "${weather.weather.firstOrNull()?.main} ${main.tempMax.toInt()}° / ${main.tempMin.toInt()}°",
+                fontSize = 20.sp,
+                color = Color.White,
+                fontWeight = FontWeight.Medium
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Surface(
+                color = Color.White.copy(alpha = 0.3f),
+                shape = RoundedCornerShape(20.dp)
+            ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.CalendarToday,
-                            contentDescription = null,
-                            tint = Color.White.copy(alpha = 0.7f),
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            "Dự báo 5 ngày",
-                            color = Color.White.copy(alpha = 0.7f),
-                            fontSize = 14.sp
-                        )
+                    val aqi = state.airPollution.list.firstOrNull()?.main?.aqi ?: 0
+                    val aqiText = when (aqi) {
+                        1 -> "Tốt"
+                        2 -> "Khá"
+                        3 -> "Trung bình"
+                        4 -> "Kém"
+                        5 -> "Rất kém"
+                        else -> "Không rõ"
                     }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                val dailySummaries = getDailyForecastSummaries(state.forecast.list).take(3)
-                dailySummaries.forEachIndexed { index, summary ->
-                    if (index == 0) {
-                        ForecastRow(
-                            dayLabel = "Hôm nay",
-                            weatherMain = state.weather.weather.firstOrNull()?.main ?: "",
-                            icon = state.weather.weather.firstOrNull()?.icon ?: "01d",
-                            tempMax = main.tempMax.toInt(),
-                            tempMin = main.tempMin.toInt()
-                        )
-                    } else {
-                        ForecastRow(
-                            dayLabel = summary.dayLabel,
-                            weatherMain = summary.weatherMain,
-                            icon = summary.icon,
-                            tempMax = summary.tempMax,
-                            tempMin = summary.tempMin
-                        )
-                    }
-                    if (index < dailySummaries.size - 1) Spacer(modifier = Modifier.height(20.dp))
-                }
-                HorizontalDivider(
-                    color = Color.White.copy(alpha = 0.2f),
-                    modifier = Modifier.padding(vertical = 12.dp)
-                )
-                Button(
-                    onClick = { onOpen5DaysForecast() },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.2f)),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Xem dự báo 5 ngày", color = Color.White, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Icon(
-                            Icons.Default.ArrowForward,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
+                    Icon(
+                        Icons.Default.Cloud,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = Color.White
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(text = "AQI $aqi - $aqiText", color = Color.White, fontSize = 14.sp)
                 }
             }
         }
 
-        GlassCard {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    StatItem(Modifier.weight(1f), "Độ ẩm", "${main.humidity}%")
-                    StatItem(Modifier.weight(1f), "Cảm giác", "${main.feelsLike.toInt()}°")
+        // Khối đáy: Box Dự báo 3 ngày & Chi tiết
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            GlassCard {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.CalendarToday,
+                                contentDescription = null,
+                                tint = Color.White.copy(alpha = 0.7f),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                "Dự báo 5 ngày",
+                                color = Color.White.copy(alpha = 0.7f),
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    val dailySummaries = getDailyForecastSummaries(state.forecast.list).take(3)
+                    dailySummaries.forEachIndexed { index, summary ->
+                        if (index == 0) {
+                            ForecastRow(
+                                dayLabel = "Hôm nay",
+                                weatherMain = state.weather.weather.firstOrNull()?.main ?: "",
+                                icon = state.weather.weather.firstOrNull()?.icon ?: "01d",
+                                tempMax = main.tempMax.toInt(),
+                                tempMin = main.tempMin.toInt()
+                            )
+                        } else {
+                            ForecastRow(
+                                dayLabel = summary.dayLabel,
+                                weatherMain = summary.weatherMain,
+                                icon = summary.icon,
+                                tempMax = summary.tempMax,
+                                tempMin = summary.tempMin
+                            )
+                        }
+                        if (index < dailySummaries.size - 1) Spacer(modifier = Modifier.height(12.dp))
+                    }
+                    HorizontalDivider(
+                        color = Color.White.copy(alpha = 0.2f),
+                        modifier = Modifier.padding(vertical = 10.dp)
+                    )
+                    Button(
+                        onClick = { onOpen5DaysForecast() },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.2f)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Xem dự báo 5 ngày", color = Color.White, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Icon(
+                                Icons.Default.ArrowForward,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
                 }
-                HorizontalDivider(
-                    color = Color.White.copy(alpha = 0.2f),
-                    modifier = Modifier.padding(vertical = 12.dp)
-                )
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    StatItem(Modifier.weight(1f), "Thấp nhất", "${main.tempMin.toInt()}°")
-                    StatItem(Modifier.weight(1f), "Áp suất", "${main.pressure} mbar")
-                }
-                HorizontalDivider(
-                    color = Color.White.copy(alpha = 0.2f),
-                    modifier = Modifier.padding(vertical = 12.dp)
-                )
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    StatItem(Modifier.weight(1f), "Cao nhất", "${main.tempMax.toInt()}°")
-                    StatItem(Modifier.weight(1f), "Tốc độ gió", "${weather.wind.speed.toInt()}km/h")
+            }
+
+            GlassCard {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        StatItem(Modifier.weight(1f), "Độ ẩm", "${main.humidity}%")
+                        StatItem(Modifier.weight(1f), "Cảm giác", "${main.feelsLike.toInt()}°")
+                    }
+                    HorizontalDivider(
+                        color = Color.White.copy(alpha = 0.2f),
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        StatItem(Modifier.weight(1f), "Thấp nhất", "${main.tempMin.toInt()}°")
+                        StatItem(Modifier.weight(1f), "Áp suất", "${main.pressure} mbar")
+                    }
+                    HorizontalDivider(
+                        color = Color.White.copy(alpha = 0.2f),
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        StatItem(Modifier.weight(1f), "Cao nhất", "${main.tempMax.toInt()}°")
+                        StatItem(Modifier.weight(1f), "Tốc độ gió", "${weather.wind.speed.toInt()}km/h")
+                    }
                 }
             }
         }
     }
-        }
 }
 
-// Hàm ForecastRow cơ bản (nhận từng trường dữ liệu riêng)
 @Composable
 fun ForecastRow(
     dayLabel: String,
@@ -635,7 +640,6 @@ fun ForecastRow(
     }
 }
 
-// Hàm ForecastRow hỗ trợ truyền trực tiếp ForecastItem cho ngày mai & các ngày sau
 @Composable
 fun ForecastRow(item: ForecastItem, dayLabel: String) {
     ForecastRow(
@@ -677,8 +681,13 @@ fun getDayNameVi(timestamp: Long): String {
     return sdf.format(date).replaceFirstChar { it.uppercase() }
 }
 
-// Hàm tính nhiệt độ Min / Max chuẩn cho cả ngày (từ 8 mốc 3 giờ)
-data class DailyForecastSummary(val dayLabel: String, val weatherMain: String, val icon: String, val tempMax: Int, val tempMin: Int)
+data class DailyForecastSummary(
+    val dayLabel: String,
+    val weatherMain: String,
+    val icon: String,
+    val tempMax: Int,
+    val tempMin: Int
+)
 
 fun getDailyForecastSummaries(forecastList: List<ForecastItem>): List<DailyForecastSummary> {
     val dayChunks = forecastList.chunked(8).take(5)
@@ -686,8 +695,6 @@ fun getDailyForecastSummaries(forecastList: List<ForecastItem>): List<DailyForec
     return dayChunks.mapIndexed { index, itemsInDay ->
         val maxTemp = itemsInDay.maxOf { it.main.tempMax }.toInt()
         val minTemp = itemsInDay.minOf { it.main.tempMin }.toInt()
-
-
         val repItem = itemsInDay.getOrNull(4) ?: itemsInDay.first()
 
         val label = when (index) {
@@ -705,4 +712,3 @@ fun getDailyForecastSummaries(forecastList: List<ForecastItem>): List<DailyForec
         )
     }
 }
-
