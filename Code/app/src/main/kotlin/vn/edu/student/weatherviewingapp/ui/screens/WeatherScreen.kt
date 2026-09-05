@@ -50,7 +50,9 @@ import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
 import kotlinx.coroutines.delay
 import vn.edu.student.weatherviewingapp.alerts.WeatherAlertSettingsStore
+import vn.edu.student.weatherviewingapp.data.CacheFreshness
 import vn.edu.student.weatherviewingapp.data.ForecastItem
+import vn.edu.student.weatherviewingapp.data.WeatherCachePolicy
 import vn.edu.student.weatherviewingapp.ui.WeatherUiState
 import vn.edu.student.weatherviewingapp.viewmodel.WeatherViewModel
 import java.text.SimpleDateFormat
@@ -375,7 +377,6 @@ fun WeatherScreen(
     }
 }
 
-// Hàm kiểm tra Cài đặt vị trí GPS (Bỏ nhãn @Composable)
 private fun checkLocationSettingsAndGetLocation(
     context: Context,
     settingResultRequest: ActivityResultLauncher<IntentSenderRequest>,
@@ -439,7 +440,7 @@ fun WeatherContent(
         verticalArrangement = Arrangement.SpaceBetween,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Khối giữa: Nhiệt độ & AQI
+        // Khối giữa: Chỉ báo Cache, Nhiệt độ & AQI
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -447,6 +448,10 @@ fun WeatherContent(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            CacheFreshnessIndicator(state.refreshedAtMillis)
+
+            Spacer(modifier = Modifier.height(8.dp))
+
             Text(
                 text = "${main.temp.toInt()}°C",
                 fontSize = 90.sp,
@@ -594,6 +599,51 @@ fun WeatherContent(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CacheFreshnessIndicator(refreshedAtMillis: Long) {
+    var nowMillis by remember(refreshedAtMillis) { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(refreshedAtMillis) {
+        while (true) {
+            nowMillis = System.currentTimeMillis()
+            delay(60_000)
+        }
+    }
+
+    val cacheStatus = WeatherCachePolicy.getStatus(refreshedAtMillis, nowMillis)
+    val isStale = cacheStatus.freshness == CacheFreshness.STALE
+    val backgroundColor = if (isStale) Color(0xFFD84315).copy(alpha = 0.88f) else Color.White.copy(alpha = 0.22f)
+    val message = if (isStale) {
+        "Dữ liệu đã cũ • cập nhật ${formatCacheAge(cacheStatus.ageMillis)} trước"
+    } else {
+        "Dữ liệu mới • cập nhật ${formatCacheAge(cacheStatus.ageMillis)} trước"
+    }
+
+    Surface(color = backgroundColor, shape = RoundedCornerShape(16.dp)) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = if (isStale) Icons.Default.Warning else Icons.Default.CheckCircle,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = Color.White
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(message, color = Color.White, fontSize = 13.sp)
+        }
+    }
+}
+
+private fun formatCacheAge(ageMillis: Long): String {
+    val minutes = ageMillis / 60_000
+    return when {
+        minutes < 1 -> "vừa xong"
+        minutes < 60 -> "$minutes phút"
+        else -> "${minutes / 60} giờ ${minutes % 60} phút"
     }
 }
 
