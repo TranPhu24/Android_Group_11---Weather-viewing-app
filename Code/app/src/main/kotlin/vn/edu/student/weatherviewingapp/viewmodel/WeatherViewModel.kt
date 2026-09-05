@@ -31,7 +31,13 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
 
     init {
         weatherCache.load()?.let { cached ->
-            _uiState.value = WeatherUiState.Success(cached.weather, cached.forecast, cached.airPollution)
+            _uiState.value = WeatherUiState.Success(
+                cached.weather,
+                cached.forecast,
+                cached.airPollution,
+                cached.refreshedAtMillis
+            )
+            refreshCachedWeatherInBackground(cached)
         }
     }
 
@@ -96,7 +102,28 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
         )
         weatherCache.save(snapshot)
         WeatherAlertNotifier.notifyIfNeeded(getApplication(), snapshot)
-        _uiState.value = WeatherUiState.Success(snapshot.weather, snapshot.forecast, snapshot.airPollution)
+        _uiState.value = WeatherUiState.Success(
+            snapshot.weather,
+            snapshot.forecast,
+            snapshot.airPollution,
+            snapshot.refreshedAtMillis
+        )
+    }
+
+    private fun refreshCachedWeatherInBackground(cached: WeatherSnapshot) {
+        if (apiKey.isBlank()) return
+        viewModelScope.launch {
+            try {
+                val weather = repository.getWeatherByCoords(
+                    cached.weather.coord.lat,
+                    cached.weather.coord.lon,
+                    apiKey
+                )
+                fetchFullWeatherData(weather)
+            } catch (_: Exception) {
+                // Keep displaying the cache; its age banner tells the user it could not be refreshed.
+            }
+        }
     }
 
     private fun isApiKeyInvalid(): Boolean {
