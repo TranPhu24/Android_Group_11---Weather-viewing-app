@@ -13,6 +13,7 @@ import com.google.android.gms.tasks.CancellationTokenSource
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -52,6 +53,8 @@ import coil3.compose.AsyncImage
 import kotlinx.coroutines.delay
 import vn.edu.student.weatherviewingapp.ui.WeatherUiState
 import vn.edu.student.weatherviewingapp.viewmodel.WeatherViewModel
+import vn.edu.student.weatherviewingapp.alerts.WeatherAlertSettings
+import vn.edu.student.weatherviewingapp.alerts.WeatherAlertSettingsStore
 import vn.edu.student.weatherviewingapp.data.ForecastItem
 import java.text.SimpleDateFormat
 import java.util.*
@@ -67,6 +70,9 @@ fun WeatherScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     var cityInput by rememberSaveable { mutableStateOf("") }
     var showSearch by remember { mutableStateOf(false) }
+    var showAlertSettings by rememberSaveable { mutableStateOf(false) }
+    val alertSettingsStore = remember(context) { WeatherAlertSettingsStore(context) }
+    var alertSettings by remember { mutableStateOf(alertSettingsStore.load()) }
     val uiState by viewModel.uiState.collectAsState()
     val suggestions by viewModel.suggestions.collectAsState()
     val focusRequester = remember { FocusRequester() }
@@ -106,6 +112,10 @@ fun WeatherScreen(
             Toast.makeText(context, "Quyền vị trí bị từ chối.", Toast.LENGTH_SHORT).show()
         }
     }
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { }
 
     Box(
         modifier = Modifier
@@ -239,6 +249,9 @@ fun WeatherScreen(
                                 tint = Color.White
                             )
                         }
+                        IconButton(onClick = { showAlertSettings = true }) {
+                            Icon(Icons.Default.Notifications, contentDescription = "Cảnh báo thời tiết", tint = Color.White)
+                        }
                     }
                 }
             }
@@ -368,10 +381,27 @@ private fun checkLocationSettingsAndGetLocation(
             Toast.makeText(context, "Thiết bị không hỗ trợ dịch vụ vị trí.", Toast.LENGTH_SHORT).show()
         }
     }
+
+    if (showAlertSettings) {
+        WeatherAlertSettingsDialog(
+            settings = alertSettings,
+            onDismiss = { showAlertSettings = false },
+            onSave = { updatedSettings ->
+                alertSettingsStore.save(updatedSettings)
+                alertSettings = updatedSettings
+                showAlertSettings = false
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                    ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                ) {
+                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
+        )
+    }
 }
 private fun hasLocationPermission(context: Context): Boolean {
     return ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
-           ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
 }
 
 private fun getCurrentLocation(context: Context, onLocationFound: (Double, Double) -> Unit) {
