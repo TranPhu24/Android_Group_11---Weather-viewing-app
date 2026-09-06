@@ -1,7 +1,7 @@
 package vn.edu.student.weatherviewingapp.data
 
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
 @Serializable
 data class WeatherResponse(
@@ -84,4 +84,16 @@ data class LocationResult(
     val lon: Double,
     val country: String,
     val state: String? = null
+)
+
+/**
+ * Dữ liệu thời tiết gần nhất được lưu cục bộ
+ * để sử dụng khi thiết bị không có Internet.
+ */
+@Serializable
+data class CachedWeatherData(
+    val weather: WeatherResponse,
+    val forecast: ForecastResponse,
+    val airPollution: AirPollutionResponse,
+    val cachedAt: Long
 )
