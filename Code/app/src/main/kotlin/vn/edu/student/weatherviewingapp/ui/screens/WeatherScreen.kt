@@ -69,10 +69,12 @@ fun WeatherScreen(
     var cityInput by rememberSaveable { mutableStateOf("") }
     var showSearch by remember { mutableStateOf(false) }
     var showAlertSettings by rememberSaveable { mutableStateOf(false) }
+    var showFavoritesSheet by rememberSaveable { mutableStateOf(false) }
     val alertSettingsStore = remember(context) { WeatherAlertSettingsStore(context) }
     var alertSettings by remember { mutableStateOf(alertSettingsStore.load()) }
     val uiState by viewModel.uiState.collectAsState()
     val suggestions by viewModel.suggestions.collectAsState()
+    val favorites by viewModel.favorites.collectAsState()
     val focusRequester = remember { FocusRequester() }
     var show5DaysForecast by remember { mutableStateOf(false) }
 
@@ -239,6 +241,36 @@ fun WeatherScreen(
                             textAlign = TextAlign.Center
                         )
 
+                        if (uiState is WeatherUiState.Success) {
+                            val success = uiState as WeatherUiState.Success
+                            val isFav = viewModel.isFavorite(success.weather.coord.lat, success.weather.coord.lon)
+                            IconButton(onClick = {
+                                viewModel.toggleFavorite(
+                                    vn.edu.student.weatherviewingapp.data.LocationResult(
+                                        name = success.weather.cityName,
+                                        lat = success.weather.coord.lat,
+                                        lon = success.weather.coord.lon,
+                                        country = success.weather.sys.country ?: "VN",
+                                        localNames = mapOf("vi" to success.weather.cityName)
+                                    )
+                                )
+                            }) {
+                                Icon(
+                                    if (isFav) Icons.Default.Star else Icons.Default.StarOutline,
+                                    contentDescription = "Yêu thích",
+                                    tint = if (isFav) Color.Yellow else Color.White
+                                )
+                            }
+                        }
+
+                        IconButton(onClick = { showFavoritesSheet = true }) {
+                            Icon(
+                                Icons.Default.Bookmarks,
+                                contentDescription = "Danh sách yêu thích",
+                                tint = Color.White
+                            )
+                        }
+
                         IconButton(onClick = { showSearch = true }) {
                             Icon(
                                 Icons.Default.Search,
@@ -373,6 +405,90 @@ fun WeatherScreen(
                     }
                 }
             )
+        }
+
+        // BottomSheet Danh sách địa điểm yêu thích
+        if (showFavoritesSheet) {
+            FavoriteLocationsSheet(
+                favorites = favorites,
+                onSelect = { loc ->
+                    viewModel.fetchWeatherByCoords(loc.lat, loc.lon, loc.localNames?.get("vi") ?: loc.name)
+                    showFavoritesSheet = false
+                },
+                onRemove = { loc -> viewModel.toggleFavorite(loc) },
+                onDismiss = { showFavoritesSheet = false }
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FavoriteLocationsSheet(
+    favorites: List<vn.edu.student.weatherviewingapp.data.LocationResult>,
+    onSelect: (vn.edu.student.weatherviewingapp.data.LocationResult) -> Unit,
+    onRemove: (vn.edu.student.weatherviewingapp.data.LocationResult) -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF2196F3),
+        contentColor = Color.White
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 32.dp, start = 16.dp, end = 16.dp)
+        ) {
+            Text(
+                "Địa điểm yêu thích",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            if (favorites.isEmpty()) {
+                Text(
+                    "Bạn chưa có địa điểm yêu thích nào.",
+                    color = Color.White.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(vertical = 20.dp)
+                )
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(favorites) { loc ->
+                        Surface(
+                            color = Color.White.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth().clickable { onSelect(loc) }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.LocationOn, contentDescription = null, tint = Color.White)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        loc.localNames?.get("vi") ?: loc.name,
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 16.sp
+                                    )
+                                    if (!loc.state.isNullOrEmpty()) {
+                                        Text(
+                                            loc.state,
+                                            fontSize = 12.sp,
+                                            color = Color.White.copy(alpha = 0.6f)
+                                        )
+                                    }
+                                }
+                                IconButton(onClick = { onRemove(loc) }) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Xóa", tint = Color.White.copy(alpha = 0.6f))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
