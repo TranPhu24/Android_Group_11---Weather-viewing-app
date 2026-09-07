@@ -856,12 +856,21 @@ data class DailyForecastSummary(
 )
 
 fun getDailyForecastSummaries(forecastList: List<ForecastItem>): List<DailyForecastSummary> {
-    val dayChunks = forecastList.chunked(8).take(5)
+    // Nhóm theo ngày thực tế (lấy 10 ký tự đầu của dt_txt, ví dụ "2026-09-07")
+    // để tránh lỗi khi ngày hôm nay không còn đủ 8 mốc (do đã qua một số giờ)
+    val dayGroups = forecastList
+        .groupBy { it.dtTxt.take(10) }
+        .entries
+        .sortedBy { it.key }
+        .take(5)
 
-    return dayChunks.mapIndexed { index, itemsInDay ->
+    return dayGroups.mapIndexed { index, (_, itemsInDay) ->
         val maxTemp = itemsInDay.maxOf { it.main.tempMax }.toInt()
         val minTemp = itemsInDay.minOf { it.main.tempMin }.toInt()
-        val repItem = itemsInDay.getOrNull(4) ?: itemsInDay.first()
+        // Lấy mốc giữa ngày (ưu tiên 12h trưa) làm đại diện thời tiết
+        val repItem = itemsInDay.firstOrNull { it.dtTxt.contains("12:00") }
+            ?: itemsInDay.getOrNull(itemsInDay.size / 2)
+            ?: itemsInDay.first()
 
         val label = when (index) {
             0 -> "Hôm nay"
