@@ -13,6 +13,7 @@ import vn.edu.student.weatherviewingapp.alerts.WeatherAlertNotifier
 import vn.edu.student.weatherviewingapp.data.LocationResult
 import vn.edu.student.weatherviewingapp.data.WeatherCache
 import vn.edu.student.weatherviewingapp.data.WeatherSnapshot
+import vn.edu.student.weatherviewingapp.data.FavoriteLocationStore
 import vn.edu.student.weatherviewingapp.repository.WeatherRepository
 import vn.edu.student.weatherviewingapp.data.WeatherResponse
 import vn.edu.student.weatherviewingapp.ui.WeatherUiState
@@ -20,12 +21,16 @@ import vn.edu.student.weatherviewingapp.ui.WeatherUiState
 class WeatherViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = WeatherRepository()
     private val weatherCache = WeatherCache(application)
+    private val favoriteStore = FavoriteLocationStore(application)
 
     private val _uiState = MutableStateFlow<WeatherUiState>(WeatherUiState.Initial)
     val uiState: StateFlow<WeatherUiState> = _uiState.asStateFlow()
 
     private val _suggestions = MutableStateFlow<List<LocationResult>>(emptyList())
     val suggestions: StateFlow<List<LocationResult>> = _suggestions.asStateFlow()
+
+    private val _favorites = MutableStateFlow<List<LocationResult>>(favoriteStore.loadFavorites())
+    val favorites: StateFlow<List<LocationResult>> = _favorites.asStateFlow()
 
     private val apiKey = BuildConfig.WEATHER_API_KEY
 
@@ -58,6 +63,22 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
 
     fun clearSuggestions() {
         _suggestions.value = emptyList()
+    }
+
+    fun toggleFavorite(location: LocationResult) {
+        val current = _favorites.value.toMutableList()
+        val existingIndex = current.indexOfFirst { it.lat == location.lat && it.lon == location.lon }
+        if (existingIndex >= 0) {
+            current.removeAt(existingIndex)
+        } else {
+            current.add(location)
+        }
+        _favorites.value = current
+        favoriteStore.saveFavorites(current)
+    }
+
+    fun isFavorite(lat: Double, lon: Double): Boolean {
+        return _favorites.value.any { it.lat == lat && it.lon == lon }
     }
 
     fun fetchWeather(city: String) {
