@@ -34,7 +34,23 @@ class CompareViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun loadFavorites() {
-        _favorites.value = favoriteStore.loadFavorites()
+        val newFavorites = favoriteStore.loadFavorites()
+        _favorites.value = newFavorites
+        
+        // Prune selected locations that are no longer in favorites
+        val currentSelected = _selectedLocations.value
+        val prunedSelected = currentSelected.filter { selected ->
+            newFavorites.any { it.lat == selected.lat && it.lon == selected.lon }
+        }.toSet()
+        
+        if (prunedSelected.size != currentSelected.size) {
+            _selectedLocations.value = prunedSelected
+            if (prunedSelected.size >= 2) {
+                compareSelected()
+            } else {
+                _uiState.value = CompareUiState.Empty
+            }
+        }
     }
 
     fun toggleSelection(location: LocationResult) {

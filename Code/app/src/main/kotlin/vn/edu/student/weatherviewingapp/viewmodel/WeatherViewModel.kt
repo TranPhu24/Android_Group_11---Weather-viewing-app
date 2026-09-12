@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import vn.edu.student.weatherviewingapp.BuildConfig
+import vn.edu.student.weatherviewingapp.data.FavoriteLocationStore
 import vn.edu.student.weatherviewingapp.data.LocationResult
 import vn.edu.student.weatherviewingapp.data.WeatherCache
 import vn.edu.student.weatherviewingapp.data.WeatherSnapshot
@@ -19,6 +20,7 @@ import vn.edu.student.weatherviewingapp.ui.WeatherUiState
 class WeatherViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = WeatherRepository()
     private val weatherCache = WeatherCache(application)
+    private val favoriteStore = FavoriteLocationStore(application)
 
     private val _uiState = MutableStateFlow<WeatherUiState>(WeatherUiState.Initial)
     val uiState: StateFlow<WeatherUiState> = _uiState.asStateFlow()
@@ -26,11 +28,44 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
     private val _suggestions = MutableStateFlow<List<LocationResult>>(emptyList())
     val suggestions: StateFlow<List<LocationResult>> = _suggestions.asStateFlow()
 
+    private val _isFavorite = MutableStateFlow(false)
+    val isFavorite: StateFlow<Boolean> = _isFavorite.asStateFlow()
+
     private val apiKey = BuildConfig.WEATHER_API_KEY
 
     init {
         weatherCache.load()?.let { cached ->
             _uiState.value = WeatherUiState.Success(cached.weather, cached.forecast, cached.airPollution)
+            checkIfFavorite(cached.weather)
+        }
+    }
+
+    private fun checkIfFavorite(weather: WeatherResponse) {
+        val favorites = favoriteStore.loadFavorites()
+        _isFavorite.value = favorites.any { it.lat == weather.coord.lat && it.lon == weather.coord.lon }
+    }
+
+    fun toggleFavorite() {
+        val state = _uiState.value
+        if (state is WeatherUiState.Success) {
+            val weather = state.weather
+            val currentFavorites = favoriteStore.loadFavorites().toMutableList()
+            val existing = currentFavorites.find { it.lat == weather.coord.lat && it.lon == weather.coord.lon }
+            
+            if (existing != null) {
+                currentFavorites.remove(existing)
+                _isFavorite.value = false
+            } else {
+                val newFavorite = LocationResult(
+                    name = weather.cityName,
+                    lat = weather.coord.lat,
+                    lon = weather.coord.lon,
+                    country = weather.sys.country ?: ""
+                )
+                currentFavorites.add(newFavorite)
+                _isFavorite.value = true
+            }
+            favoriteStore.saveFavorites(currentFavorites)
         }
     }
 
@@ -73,8 +108,7 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
             try {
                 if (isApiKeyInvalid()) return@launch
                 val weather = repository.getWeatherByCoords(lat, lon, apiKey)
-                // Use provided name if available (e.g., from search or GPS reverse geocoding)
-                val finalWeather = if (name != null) weather.copy(cityName = name) else weather
+                                val finalWeather = if (name != null) weather.copy(cityName = name) else weather
                 fetchFullWeatherData(finalWeather)
             } catch (e: Exception) {
                 _uiState.value = WeatherUiState.Error(e.localizedMessage ?: "Unknown Error")
@@ -94,6 +128,7 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
             airPollution = pollutionDeferred.await()
         )
         weatherCache.save(snapshot)
+        checkIfFavorite(snapshot.weather)
         _uiState.value = WeatherUiState.Success(snapshot.weather, snapshot.forecast, snapshot.airPollution)
     }
 

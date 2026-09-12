@@ -44,6 +44,7 @@ import kotlinx.coroutines.delay
 import vn.edu.student.weatherviewingapp.ui.WeatherUiState
 import vn.edu.student.weatherviewingapp.viewmodel.WeatherViewModel
 import vn.edu.student.weatherviewingapp.data.ForecastItem
+import vn.edu.student.weatherviewingapp.ui.screens.CompareScreen
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -56,9 +57,17 @@ fun WeatherScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     var cityInput by rememberSaveable { mutableStateOf("") }
     var showSearch by remember { mutableStateOf(false) }
+    var showComparePage by remember { mutableStateOf(false) }
+    
     val uiState by viewModel.uiState.collectAsState()
     val suggestions by viewModel.suggestions.collectAsState()
+    val isFavorite by viewModel.isFavorite.collectAsState()
     val focusRequester = remember { FocusRequester() }
+
+    if (showComparePage) {
+        CompareScreen(onBack = { showComparePage = false })
+        return
+    }
 
     LaunchedEffect(showSearch) {
         if (showSearch) {
@@ -90,8 +99,7 @@ fun WeatherScreen(
             )
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Custom Header
-            Surface(
+                        Surface(
                 color = if (showSearch) Color.Black.copy(alpha = 0.7f) else Color.Transparent,
                 modifier = Modifier.fillMaxWidth().statusBarsPadding()
             ) {
@@ -181,13 +189,24 @@ fun WeatherScreen(
                         IconButton(onClick = { showSearch = true }) {
                             Icon(Icons.Default.Search, contentDescription = "Tìm kiếm", tint = Color.White)
                         }
+
+                        IconButton(onClick = { viewModel.toggleFavorite() }) {
+                            Icon(
+                                imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription = "Yêu thích",
+                                tint = if (isFavorite) Color.Red else Color.White
+                            )
+                        }
+
+                        IconButton(onClick = { showComparePage = true }) {
+                            Icon(Icons.Default.Compare, contentDescription = "So sánh", tint = Color.White)
+                        }
                     }
                 }
             }
 
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                // Main Weather Content
-                val scrollState = rememberScrollState()
+                                val scrollState = rememberScrollState()
                 Column(
                     modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp).verticalScroll(scrollState),
                     horizontalAlignment = Alignment.CenterHorizontally
@@ -216,8 +235,7 @@ fun WeatherScreen(
                     }
                 }
 
-                // Suggestions Overlay
-                if (showSearch) {
+                                if (showSearch) {
                     Surface(
                         color = Color.Black.copy(alpha = 0.85f),
                         modifier = Modifier.fillMaxSize().zIndex(10f)
