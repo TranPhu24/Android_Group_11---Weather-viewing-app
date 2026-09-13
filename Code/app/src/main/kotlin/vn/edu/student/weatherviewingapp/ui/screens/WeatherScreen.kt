@@ -44,7 +44,6 @@ import kotlinx.coroutines.delay
 import vn.edu.student.weatherviewingapp.ui.WeatherUiState
 import vn.edu.student.weatherviewingapp.viewmodel.WeatherViewModel
 import vn.edu.student.weatherviewingapp.data.ForecastItem
-import vn.edu.student.weatherviewingapp.ui.screens.CompareScreen
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -57,17 +56,10 @@ fun WeatherScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     var cityInput by rememberSaveable { mutableStateOf("") }
     var showSearch by remember { mutableStateOf(false) }
-    var showComparePage by remember { mutableStateOf(false) }
     
     val uiState by viewModel.uiState.collectAsState()
     val suggestions by viewModel.suggestions.collectAsState()
-    val isFavorite by viewModel.isFavorite.collectAsState()
     val focusRequester = remember { FocusRequester() }
-
-    if (showComparePage) {
-        CompareScreen(onBack = { showComparePage = false })
-        return
-    }
 
     LaunchedEffect(showSearch) {
         if (showSearch) {
@@ -188,18 +180,6 @@ fun WeatherScreen(
 
                         IconButton(onClick = { showSearch = true }) {
                             Icon(Icons.Default.Search, contentDescription = "Tìm kiếm", tint = Color.White)
-                        }
-
-                        IconButton(onClick = { viewModel.toggleFavorite() }) {
-                            Icon(
-                                imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                contentDescription = "Yêu thích",
-                                tint = if (isFavorite) Color.Red else Color.White
-                            )
-                        }
-
-                        IconButton(onClick = { showComparePage = true }) {
-                            Icon(Icons.Default.Compare, contentDescription = "So sánh", tint = Color.White)
                         }
                     }
                 }
