@@ -10,10 +10,13 @@ import androidx.compose.ui.Modifier
 import vn.edu.student.weatherviewingapp.ui.screens.WeatherScreen
 import vn.edu.student.weatherviewingapp.ui.theme.WeatherViewingAppTheme
 import vn.edu.student.weatherviewingapp.worker.WeatherRefreshScheduler
+import vn.edu.student.weatherviewingapp.alerts.WeatherAlertNotifier
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WeatherAlertNotifier.createNotificationChannel(this)
         WeatherRefreshScheduler.schedule(this)
         setContent {
             WeatherViewingAppTheme {

@@ -10,6 +10,7 @@ import java.io.IOException
 import vn.edu.student.weatherviewingapp.BuildConfig
 
 import vn.edu.student.weatherviewingapp.data.WeatherCache
+import vn.edu.student.weatherviewingapp.alerts.WeatherAlertNotifier
 import vn.edu.student.weatherviewingapp.data.WeatherSnapshot
 import vn.edu.student.weatherviewingapp.repository.WeatherRepository
 
@@ -43,7 +44,7 @@ class WeatherRefreshWorker(
                 WeatherSnapshot(weather, forecast.await(), airPollution.await())
             }
             cache.save(snapshot)
-
+            WeatherAlertNotifier.notifyIfNeeded(applicationContext, snapshot)
             Result.success()
         } catch (exception: HttpException) {
             // Retry rate limiting (429) and temporary server failures, not invalid requests or keys.

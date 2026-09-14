@@ -10,7 +10,8 @@ sealed interface WeatherUiState {
     data class Success(
         val weather: WeatherResponse,
         val forecast: ForecastResponse,
-        val airPollution: AirPollutionResponse
+        val airPollution: AirPollutionResponse,
+        val refreshedAtMillis: Long
     ) : WeatherUiState
     data class Error(val message: String) : WeatherUiState
 }
