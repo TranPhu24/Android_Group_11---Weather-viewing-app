@@ -55,6 +55,7 @@ import vn.edu.student.weatherviewingapp.data.ForecastItem
 import vn.edu.student.weatherviewingapp.data.WeatherCachePolicy
 import vn.edu.student.weatherviewingapp.ui.WeatherUiState
 import vn.edu.student.weatherviewingapp.viewmodel.WeatherViewModel
+import vn.edu.student.weatherviewingapp.ui.screens.CompareScreen
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.time.Duration.Companion.milliseconds
@@ -77,6 +78,12 @@ fun WeatherScreen(
     val favorites by viewModel.favorites.collectAsState()
     val focusRequester = remember { FocusRequester() }
     var show5DaysForecast by remember { mutableStateOf(false) }
+    var showComparePage by remember { mutableStateOf(false) }
+
+    if (showComparePage) {
+        CompareScreen(onBack = { showComparePage = false })
+        return
+    }
 
     LaunchedEffect(showSearch) {
         if (showSearch) {
@@ -282,6 +289,13 @@ fun WeatherScreen(
                             Icon(
                                 Icons.Default.Notifications,
                                 contentDescription = "Cảnh báo thời tiết",
+                                tint = Color.White
+                            )
+                        }
+                        IconButton(onClick = { showComparePage = true }) {
+                            Icon(
+                                Icons.Default.Compare,
+                                contentDescription = "So sánh",
                                 tint = Color.White
                             )
                         }

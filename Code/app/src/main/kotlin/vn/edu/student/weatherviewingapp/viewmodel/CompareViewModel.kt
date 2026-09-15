@@ -15,6 +15,8 @@ import vn.edu.student.weatherviewingapp.repository.WeatherRepository
 import vn.edu.student.weatherviewingapp.ui.CompareUiState
 import vn.edu.student.weatherviewingapp.ui.LocationWeatherComparison
 
+import kotlinx.coroutines.awaitAll
+
 class CompareViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = WeatherRepository()
     private val favoriteStore = FavoriteLocationStore(application)
@@ -23,7 +25,7 @@ class CompareViewModel(application: Application) : AndroidViewModel(application)
     private val _uiState = MutableStateFlow<CompareUiState>(CompareUiState.Empty)
     val uiState: StateFlow<CompareUiState> = _uiState.asStateFlow()
 
-    private val _favorites = MutableStateFlow<List<LocationResult>>(emptyList())
+    private val _favorites = MutableStateFlow(favoriteStore.loadFavorites())
     val favorites: StateFlow<List<LocationResult>> = _favorites.asStateFlow()
 
     private val _selectedLocations = MutableStateFlow<Set<LocationResult>>(emptySet())
@@ -37,7 +39,6 @@ class CompareViewModel(application: Application) : AndroidViewModel(application)
         val newFavorites = favoriteStore.loadFavorites()
         _favorites.value = newFavorites
         
-        // Prune selected locations that are no longer in favorites
         val currentSelected = _selectedLocations.value
         val prunedSelected = currentSelected.filter { selected ->
             newFavorites.any { it.lat == selected.lat && it.lon == selected.lon }
@@ -86,7 +87,7 @@ class CompareViewModel(application: Application) : AndroidViewModel(application)
                             airPollution = air
                         )
                     }
-                }.map { it.await() }
+                }.awaitAll()
                 
                 _uiState.value = CompareUiState.Success(comparisons)
             } catch (e: Exception) {

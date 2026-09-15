@@ -22,7 +22,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -232,7 +231,7 @@ fun ComparisonContent(comparisons: List<LocationWeatherComparison>) {
 @Composable
 fun TemperatureBarChart(comparisons: List<LocationWeatherComparison>) {
     val maxTemp = comparisons.maxOfOrNull { it.weather.main.temp } ?: 40.0
-    val displayMax = maxOf(maxTemp + 5, 30.0)
+    val displayMax = (maxTemp + 5).coerceAtLeast(30.0)
 
     Surface(
         modifier = Modifier
@@ -241,7 +240,7 @@ fun TemperatureBarChart(comparisons: List<LocationWeatherComparison>) {
             .padding(horizontal = 16.dp),
         shape = RoundedCornerShape(28.dp),
         color = Color.White.copy(alpha = 0.2f),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.2f))
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)),
     ) {
         Canvas(modifier = Modifier.fillMaxSize().padding(start = 20.dp, end = 20.dp, top = 40.dp, bottom = 40.dp)) {
             val canvasWidth = size.width
@@ -249,7 +248,7 @@ fun TemperatureBarChart(comparisons: List<LocationWeatherComparison>) {
             val barWidth = 45.dp.toPx()
             val spacing = (canvasWidth - (barWidth * comparisons.size)) / (comparisons.size + 1)
 
-                        val gridLines = 4
+            val gridLines = 4
             for (i in 0..gridLines) {
                 val yGrid = (canvasHeight / gridLines) * i
                 drawLine(
@@ -263,7 +262,7 @@ fun TemperatureBarChart(comparisons: List<LocationWeatherComparison>) {
             comparisons.forEachIndexed { index, item ->
                 val temp = item.weather.main.temp
                 val barHeight = (temp / displayMax) * canvasHeight
-                val x = spacing + index * (barWidth + spacing)
+                val x = spacing + (index * (barWidth + spacing))
                 val y = canvasHeight - barHeight.toFloat()
 
                                 val barGradient = Brush.verticalGradient(

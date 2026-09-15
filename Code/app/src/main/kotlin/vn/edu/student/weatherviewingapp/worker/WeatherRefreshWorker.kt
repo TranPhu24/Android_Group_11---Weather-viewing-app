@@ -16,7 +16,7 @@ import vn.edu.student.weatherviewingapp.repository.WeatherRepository
 
 class WeatherRefreshWorker(
     appContext: Context,
-    parameters: WorkerParameters
+    parameters: WorkerParameters,
 ) : CoroutineWorker(appContext, parameters) {
 
     override suspend fun doWork(): Result {
@@ -47,12 +47,10 @@ class WeatherRefreshWorker(
             WeatherAlertNotifier.notifyIfNeeded(applicationContext, snapshot)
             Result.success()
         } catch (exception: HttpException) {
-            // Retry rate limiting (429) and temporary server failures, not invalid requests or keys.
-            if (exception.code() == 429 || exception.code() in 500..599) Result.retry() else Result.failure()
-        } catch (exception: IOException) {
-            // Network errors are transient; WorkManager applies the configured backoff delay.
+            if (exception.code() == 429 || (exception.code() in 500..599)) Result.retry() else Result.failure()
+        } catch (_: IOException) {
             Result.retry()
-        } catch (exception: Exception) {
+        } catch (_: Exception) {
             Result.retry()
         }
     }
