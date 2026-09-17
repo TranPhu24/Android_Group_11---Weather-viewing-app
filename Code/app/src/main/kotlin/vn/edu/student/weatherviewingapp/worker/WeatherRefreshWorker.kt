@@ -5,7 +5,10 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import retrofit2.HttpException
+import java.io.IOException
 import vn.edu.student.weatherviewingapp.BuildConfig
+
 import vn.edu.student.weatherviewingapp.data.WeatherCache
 import vn.edu.student.weatherviewingapp.alerts.WeatherAlertNotifier
 import vn.edu.student.weatherviewingapp.data.WeatherSnapshot
@@ -13,10 +16,14 @@ import vn.edu.student.weatherviewingapp.repository.WeatherRepository
 
 class WeatherRefreshWorker(
     appContext: Context,
-    parameters: WorkerParameters
+    parameters: WorkerParameters,
 ) : CoroutineWorker(appContext, parameters) {
 
     override suspend fun doWork(): Result {
+        if (BuildConfig.WEATHER_API_KEY.isBlank()) {
+            return Result.failure()
+        }
+
         val cache = WeatherCache(applicationContext)
         val previousSnapshot = cache.load() ?: return Result.success()
 
@@ -39,7 +46,11 @@ class WeatherRefreshWorker(
             cache.save(snapshot)
             WeatherAlertNotifier.notifyIfNeeded(applicationContext, snapshot)
             Result.success()
-        } catch (exception: Exception) {
+        } catch (exception: HttpException) {
+            if (exception.code() == 429 || (exception.code() in 500..599)) Result.retry() else Result.failure()
+        } catch (_: IOException) {
+            Result.retry()
+        } catch (_: Exception) {
             Result.retry()
         }
     }
