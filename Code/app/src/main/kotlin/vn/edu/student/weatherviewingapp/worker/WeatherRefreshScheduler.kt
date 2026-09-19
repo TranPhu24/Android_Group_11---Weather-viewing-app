@@ -2,6 +2,7 @@ package vn.edu.student.weatherviewingapp.worker
 
 import android.content.Context
 import androidx.work.Constraints
+import androidx.work.BackoffPolicy
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
@@ -17,6 +18,11 @@ object WeatherRefreshScheduler {
                 Constraints.Builder()
                     .setRequiredNetworkType(NetworkType.CONNECTED)
                     .build()
+            )
+            .setBackoffCriteria(
+                BackoffPolicy.EXPONENTIAL,
+                10,
+                TimeUnit.MINUTES
             )
             .build()
 

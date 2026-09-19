@@ -1,48 +1,36 @@
 package vn.edu.student.weatherviewingapp.repository
 
-import kotlinx.serialization.json.Json
-import okhttp3.MediaType.Companion.toMediaType
-import retrofit2.Retrofit
-import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import vn.edu.student.weatherviewingapp.data.AirPollutionResponse
 import vn.edu.student.weatherviewingapp.data.ForecastResponse
 import vn.edu.student.weatherviewingapp.data.LocationResult
 import vn.edu.student.weatherviewingapp.data.WeatherApi
 import vn.edu.student.weatherviewingapp.data.WeatherResponse
 
-class WeatherRepository {
-    private val json = Json { ignoreUnknownKeys = true }
+class WeatherRepository(private val weatherApi: WeatherApi) {
 
-    private val retrofit = Retrofit.Builder()
-        .baseUrl("https://api.openweathermap.org/data/2.5/")
-        .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
-        .build()
-
-    private val weatherApi = retrofit.create(WeatherApi::class.java)
-
-    suspend fun getWeather(city: String, apiKey: String): WeatherResponse {
-        return weatherApi.getCurrentWeather(city, apiKey)
+    suspend fun getWeather(city: String): WeatherResponse {
+        return weatherApi.getCurrentWeather(city)
     }
 
-    suspend fun getForecast(city: String, apiKey: String): ForecastResponse {
-        return weatherApi.getForecast(city, apiKey)
+    suspend fun getForecast(city: String): ForecastResponse {
+        return weatherApi.getForecast(city)
     }
 
-    suspend fun getForecastByCoords(lat: Double, lon: Double, apiKey: String): ForecastResponse {
-        return weatherApi.getForecastByCoords(lat, lon, apiKey)
+    suspend fun getForecastByCoords(lat: Double, lon: Double): ForecastResponse {
+        return weatherApi.getForecastByCoords(lat, lon)
     }
 
-    suspend fun getAirPollution(lat: Double, lon: Double, apiKey: String): AirPollutionResponse {
-        return weatherApi.getAirPollution(lat, lon, apiKey)
+    suspend fun getAirPollution(lat: Double, lon: Double): AirPollutionResponse {
+        return weatherApi.getAirPollution(lat, lon)
     }
 
-    suspend fun searchLocations(query: String, apiKey: String): List<LocationResult> {
+    suspend fun searchLocations(query: String): List<LocationResult> {
         return try {
             // Call API with national key VN
-            val searchVn = try { weatherApi.searchLocations("$query,VN", 50, apiKey) } catch (e: Exception) { emptyList() }
+            val searchVn = try { weatherApi.searchLocations("$query,VN", 50) } catch (e: Exception) { emptyList() }
 
             // Tìm kiếm chung đề phòng trường hợp API sót kết quả
-            val searchGlobal = try { weatherApi.searchLocations(query, 50, apiKey) } catch (e: Exception) { emptyList() }
+            val searchGlobal = try { weatherApi.searchLocations(query, 50) } catch (e: Exception) { emptyList() }
 
             // Gộp kết quả, chỉ lấy VN
             val combinedResults = (searchVn + searchGlobal)
@@ -63,11 +51,11 @@ class WeatherRepository {
         }
     }
 
-    suspend fun getWeatherByCoords(lat: Double, lon: Double, apiKey: String): WeatherResponse {
-        return weatherApi.getWeatherByCoords(lat, lon, apiKey)
+    suspend fun getWeatherByCoords(lat: Double, lon: Double): WeatherResponse {
+        return weatherApi.getWeatherByCoords(lat, lon)
     }
 
-    suspend fun reverseGeocode(lat: Double, lon: Double, apiKey: String): List<LocationResult> {
-        return weatherApi.reverseGeocode(lat, lon, 1, apiKey)
+    suspend fun reverseGeocode(lat: Double, lon: Double): List<LocationResult> {
+        return weatherApi.reverseGeocode(lat, lon, 1)
     }
 }
