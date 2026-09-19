@@ -19,3 +19,10 @@ fun getDayNameVi(timestamp: Long): String {
     val sdf = SimpleDateFormat("EEEE", localeVi)
     return sdf.format(date).replaceFirstChar { it.uppercase() }
 }
+
+fun formatDateShort(timestamp: Long): String {
+    val date = Date(timestamp * 1000)
+    val localeVi = Locale.forLanguageTag("vi-VN")
+    val sdf = SimpleDateFormat("dd/MM", localeVi)
+    return sdf.format(date)
+}
