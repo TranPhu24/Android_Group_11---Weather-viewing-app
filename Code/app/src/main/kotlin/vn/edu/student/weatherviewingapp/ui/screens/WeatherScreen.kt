@@ -2,13 +2,10 @@ package vn.edu.student.weatherviewingapp.ui.screens
 
 import android.Manifest
 import android.app.Activity
-import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.ActivityResultLauncher
-import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -32,7 +29,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -41,23 +37,20 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil3.compose.AsyncImage
-import com.google.android.gms.common.api.ResolvableApiException
-import com.google.android.gms.location.LocationRequest
-import com.google.android.gms.location.LocationServices
-import com.google.android.gms.location.LocationSettingsRequest
-import com.google.android.gms.location.Priority
-import com.google.android.gms.tasks.CancellationTokenSource
+import vn.edu.student.weatherviewingapp.utils.getCurrentLocation
+import vn.edu.student.weatherviewingapp.utils.hasLocationPermission
+import vn.edu.student.weatherviewingapp.utils.checkLocationSettingsAndGetLocation
+import vn.edu.student.weatherviewingapp.data.getDailyForecastSummaries
 import kotlinx.coroutines.delay
 import vn.edu.student.weatherviewingapp.alerts.WeatherAlertSettingsStore
-import vn.edu.student.weatherviewingapp.data.CacheFreshness
-import vn.edu.student.weatherviewingapp.data.ForecastItem
-import vn.edu.student.weatherviewingapp.data.WeatherCachePolicy
+import vn.edu.student.weatherviewingapp.ui.components.WeatherAlertSettingsDialog
 import vn.edu.student.weatherviewingapp.ui.WeatherUiState
+import vn.edu.student.weatherviewingapp.ui.components.FavoriteLocationsSheet
+import vn.edu.student.weatherviewingapp.ui.components.StatItem
+import vn.edu.student.weatherviewingapp.ui.components.GlassCard
+import vn.edu.student.weatherviewingapp.ui.components.ForecastRow
 import vn.edu.student.weatherviewingapp.viewmodel.WeatherViewModel
-import vn.edu.student.weatherviewingapp.ui.screens.CompareScreen
-import java.text.SimpleDateFormat
-import java.util.*
+import vn.edu.student.weatherviewingapp.ui.components.CacheFreshnessIndicator
 import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -413,7 +406,10 @@ fun WeatherScreen(
                     alertSettings = updatedSettings
                     showAlertSettings = false
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                        ContextCompat.checkSelfPermission(
+                            context,
+                            Manifest.permission.POST_NOTIFICATIONS
+                        ) != PackageManager.PERMISSION_GRANTED
                     ) {
                         notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                     }
@@ -436,126 +432,8 @@ fun WeatherScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun FavoriteLocationsSheet(
-    favorites: List<vn.edu.student.weatherviewingapp.data.LocationResult>,
-    onSelect: (vn.edu.student.weatherviewingapp.data.LocationResult) -> Unit,
-    onRemove: (vn.edu.student.weatherviewingapp.data.LocationResult) -> Unit,
-    onDismiss: () -> Unit
-) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = Color(0xFF2196F3),
-        contentColor = Color.White
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 32.dp, start = 16.dp, end = 16.dp)
-        ) {
-            Text(
-                "Địa điểm yêu thích",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
 
-            if (favorites.isEmpty()) {
-                Text(
-                    "Bạn chưa có địa điểm yêu thích nào.",
-                    color = Color.White.copy(alpha = 0.7f),
-                    modifier = Modifier.padding(vertical = 20.dp)
-                )
-            } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(favorites) { loc ->
-                        Surface(
-                            color = Color.White.copy(alpha = 0.15f),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth().clickable { onSelect(loc) }
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.LocationOn, contentDescription = null, tint = Color.White)
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        loc.localNames?.get("vi") ?: loc.name,
-                                        fontWeight = FontWeight.Medium,
-                                        fontSize = 16.sp
-                                    )
-                                    if (!loc.state.isNullOrEmpty()) {
-                                        Text(
-                                            loc.state,
-                                            fontSize = 12.sp,
-                                            color = Color.White.copy(alpha = 0.6f)
-                                        )
-                                    }
-                                }
-                                IconButton(onClick = { onRemove(loc) }) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Xóa", tint = Color.White.copy(alpha = 0.6f))
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
 
-private fun checkLocationSettingsAndGetLocation(
-    context: Context,
-    settingResultRequest: ActivityResultLauncher<IntentSenderRequest>,
-    onLocationFound: (Double, Double) -> Unit
-) {
-    val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000).build()
-    val builder = LocationSettingsRequest.Builder().addLocationRequest(locationRequest).setAlwaysShow(true)
-    val client = LocationServices.getSettingsClient(context)
-    client.checkLocationSettings(builder.build()).addOnSuccessListener {
-        getCurrentLocation(context, onLocationFound)
-    }.addOnFailureListener { exception ->
-        if (exception is ResolvableApiException) {
-            try {
-                val intentSenderRequest = IntentSenderRequest.Builder(exception.resolution).build()
-                settingResultRequest.launch(intentSenderRequest)
-            } catch (sendEx: Exception) {
-                Toast.makeText(context, "Không thể mở cài đặt vị trí.", Toast.LENGTH_SHORT).show()
-            }
-        } else {
-            Toast.makeText(context, "Thiết bị không hỗ trợ dịch vụ vị trí.", Toast.LENGTH_SHORT).show()
-        }
-    }
-}
-
-private fun hasLocationPermission(context: Context): Boolean {
-    return ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
-            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-}
-
-private fun getCurrentLocation(context: Context, onLocationFound: (Double, Double) -> Unit) {
-    val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
-    Toast.makeText(context, "Đang lấy vị trí hiện tại...", Toast.LENGTH_SHORT).show()
-    try {
-        fusedLocationClient.getCurrentLocation(
-            Priority.PRIORITY_HIGH_ACCURACY,
-            CancellationTokenSource().token
-        ).addOnSuccessListener { location ->
-            if (location != null) {
-                onLocationFound(location.latitude, location.longitude)
-            } else {
-                Toast.makeText(context, "Không lấy được vị trí, thử lại sau.", Toast.LENGTH_SHORT).show()
-            }
-        }.addOnFailureListener {
-            Toast.makeText(context, "Lỗi kết nối dịch vụ định vị.", Toast.LENGTH_SHORT).show()
-        }
-    } catch (e: SecurityException) {
-        Toast.makeText(context, "Chưa được cấp quyền truy cập Vị trí.", Toast.LENGTH_SHORT).show()
-    }
-}
 
 @Composable
 fun WeatherContent(
@@ -732,172 +610,3 @@ fun WeatherContent(
     }
 }
 
-@Composable
-private fun CacheFreshnessIndicator(refreshedAtMillis: Long) {
-    var nowMillis by remember(refreshedAtMillis) { mutableLongStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(refreshedAtMillis) {
-        while (true) {
-            nowMillis = System.currentTimeMillis()
-            delay(60_000)
-        }
-    }
-
-    val cacheStatus = WeatherCachePolicy.getStatus(refreshedAtMillis, nowMillis)
-    val isStale = cacheStatus.freshness == CacheFreshness.STALE
-    val backgroundColor = if (isStale) Color(0xFFD84315).copy(alpha = 0.88f) else Color.White.copy(alpha = 0.22f)
-    val message = if (isStale) {
-        "Dữ liệu đã cũ • cập nhật ${formatCacheAge(cacheStatus.ageMillis)} trước"
-    } else {
-        "Dữ liệu mới • cập nhật ${formatCacheAge(cacheStatus.ageMillis)} trước"
-    }
-
-    Surface(color = backgroundColor, shape = RoundedCornerShape(16.dp)) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = if (isStale) Icons.Default.Warning else Icons.Default.CheckCircle,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp),
-                tint = Color.White
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(message, color = Color.White, fontSize = 13.sp)
-        }
-    }
-}
-
-private fun formatCacheAge(ageMillis: Long): String {
-    val minutes = ageMillis / 60_000
-    return when {
-        minutes < 1 -> "vừa xong"
-        minutes < 60 -> "$minutes phút"
-        else -> "${minutes / 60} giờ ${minutes % 60} phút"
-    }
-}
-
-@Composable
-fun ForecastRow(
-    dayLabel: String,
-    weatherMain: String,
-    icon: String,
-    tempMax: Int,
-    tempMin: Int
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        AsyncImage(
-            model = "https://openweathermap.org/img/wn/$icon@2x.png",
-            contentDescription = null,
-            modifier = Modifier.size(32.dp)
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-        Text(
-            text = dayLabel,
-            modifier = Modifier.weight(1.2f),
-            color = Color.White,
-            fontWeight = FontWeight.Bold,
-            fontSize = 18.sp
-        )
-        Text(
-            text = weatherMain,
-            modifier = Modifier.weight(1f),
-            color = Color.White.copy(alpha = 0.8f),
-            fontSize = 16.sp,
-            fontStyle = FontStyle.Italic
-        )
-        Text(
-            text = "$tempMax° / $tempMin°",
-            color = Color.White,
-            fontWeight = FontWeight.Bold,
-            fontSize = 18.sp,
-            modifier = Modifier.weight(1f),
-            textAlign = TextAlign.End
-        )
-    }
-}
-
-@Composable
-fun ForecastRow(item: ForecastItem, dayLabel: String) {
-    ForecastRow(
-        dayLabel = dayLabel,
-        weatherMain = item.weather.firstOrNull()?.main ?: "",
-        icon = item.weather.firstOrNull()?.icon ?: "01d",
-        tempMax = item.main.tempMax.toInt(),
-        tempMin = item.main.tempMin.toInt()
-    )
-}
-
-@Composable
-fun StatItem(modifier: Modifier, label: String, value: String) {
-    Row(
-        modifier = modifier.padding(end = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(text = label, color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
-        Text(text = value, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-    }
-}
-
-@Composable
-fun GlassCard(content: @Composable () -> Unit) {
-    Surface(
-        color = Color.White.copy(alpha = 0.15f),
-        shape = RoundedCornerShape(24.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        content()
-    }
-}
-
-fun getDayNameVi(timestamp: Long): String {
-    val date = Date(timestamp * 1000)
-    val localeVi = Locale.forLanguageTag("vi-VN")
-    val sdf = SimpleDateFormat("EEEE", localeVi)
-    return sdf.format(date).replaceFirstChar { it.uppercase() }
-}
-
-data class DailyForecastSummary(
-    val dayLabel: String,
-    val weatherMain: String,
-    val icon: String,
-    val tempMax: Int,
-    val tempMin: Int
-)
-
-fun getDailyForecastSummaries(forecastList: List<ForecastItem>): List<DailyForecastSummary> {
-    // Nhóm theo ngày thực tế (lấy 10 ký tự đầu của dt_txt, ví dụ "2026-09-07")
-    // để tránh lỗi khi ngày hôm nay không còn đủ 8 mốc (do đã qua một số giờ)
-    val dayGroups = forecastList
-        .groupBy { it.dtTxt.take(10) }
-        .entries
-        .sortedBy { it.key }
-        .take(5)
-
-    return dayGroups.mapIndexed { index, (_, itemsInDay) ->
-        val maxTemp = itemsInDay.maxOf { it.main.tempMax }.toInt()
-        val minTemp = itemsInDay.minOf { it.main.tempMin }.toInt()
-        // Lấy mốc giữa ngày (ưu tiên 12h trưa) làm đại diện thời tiết
-        val repItem = itemsInDay.firstOrNull { it.dtTxt.contains("12:00") }
-            ?: itemsInDay.getOrNull(itemsInDay.size / 2)
-            ?: itemsInDay.first()
-
-        val label = when (index) {
-            0 -> "Hôm nay"
-            1 -> "Ngày mai"
-            else -> getDayNameVi(repItem.dt)
-        }
-
-        DailyForecastSummary(
-            dayLabel = label,
-            weatherMain = repItem.weather.firstOrNull()?.main ?: "",
-            icon = repItem.weather.firstOrNull()?.icon ?: "01d",
-            tempMax = maxTemp,
-            tempMin = minTemp
-        )
-    }
-}

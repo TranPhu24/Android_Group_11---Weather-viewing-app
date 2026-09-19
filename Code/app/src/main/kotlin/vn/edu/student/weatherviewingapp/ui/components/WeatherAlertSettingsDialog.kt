@@ -1,4 +1,4 @@
-package vn.edu.student.weatherviewingapp.ui.screens
+package vn.edu.student.weatherviewingapp.ui.components
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
