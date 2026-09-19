@@ -98,6 +98,29 @@ fun WeatherScreen(
         }
     }
 
+    var showPermissionDialog by remember { mutableStateOf(false) }
+
+    if (showPermissionDialog) {
+        AlertDialog(
+            onDismissRequest = { showPermissionDialog = false },
+            title = { Text("Yêu cầu quyền vị trí") },
+            text = { Text("Ứng dụng cần quyền vị trí để tải thời tiết ngay tại nơi bạn đang đứng. Vui lòng cấp quyền trong phần Cài đặt của máy.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showPermissionDialog = false
+                    vn.edu.student.weatherviewingapp.utils.openAppSettings(context)
+                }) {
+                    Text("Mở Cài đặt")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPermissionDialog = false }) {
+                    Text("Hủy")
+                }
+            }
+        )
+    }
+
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -108,7 +131,7 @@ fun WeatherScreen(
                 viewModel.fetchWeatherByCoords(lat, lon)
             }
         } else {
-            Toast.makeText(context, "Quyền vị trí bị từ chối.", Toast.LENGTH_SHORT).show()
+            showPermissionDialog = true
         }
     }
 
@@ -305,11 +328,33 @@ fun WeatherScreen(
                     when (val state = uiState) {
                         is WeatherUiState.Initial -> {
                             Spacer(modifier = Modifier.height(100.dp))
-                            Text("Tìm kiếm quận/huyện hoặc dùng GPS.", color = Color.White, fontSize = 18.sp)
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = null,
+                                tint = Color.White.copy(alpha = 0.5f),
+                                modifier = Modifier.size(80.dp)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                "Tìm kiếm thành phố\nhoặc nhấn biểu tượng Vị trí",
+                                color = Color.White.copy(alpha = 0.8f),
+                                fontSize = 18.sp,
+                                textAlign = TextAlign.Center
+                            )
                         }
                         is WeatherUiState.Loading -> {
-                            Spacer(modifier = Modifier.height(100.dp))
-                            CircularProgressIndicator(color = Color.White)
+                            Spacer(modifier = Modifier.height(150.dp))
+                            CircularProgressIndicator(
+                                color = Color.White,
+                                strokeWidth = 3.dp,
+                                modifier = Modifier.size(50.dp)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                "Đang tải dữ liệu...",
+                                color = Color.White.copy(alpha = 0.8f),
+                                fontSize = 16.sp
+                            )
                         }
                         is WeatherUiState.Success -> {
                             WeatherContent(
@@ -319,15 +364,36 @@ fun WeatherScreen(
                         }
                         is WeatherUiState.Error -> {
                             Spacer(modifier = Modifier.height(100.dp))
+                            Icon(
+                                Icons.Default.ErrorOutline,
+                                contentDescription = "Lỗi",
+                                tint = Color(0xFFFF5252),
+                                modifier = Modifier.size(80.dp)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = state.message,
+                                text = "Úi, có lỗi xảy ra!",
                                 color = Color.White,
-                                modifier = Modifier
-                                    .padding(16.dp)
-                                    .background(Color.Red.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                                    .padding(8.dp),
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Bold,
                                 textAlign = TextAlign.Center
                             )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = state.message,
+                                color = Color.White.copy(alpha = 0.8f),
+                                modifier = Modifier.padding(horizontal = 24.dp),
+                                textAlign = TextAlign.Center,
+                                fontSize = 16.sp
+                            )
+                            Spacer(modifier = Modifier.height(24.dp))
+                            Button(
+                                onClick = { viewModel.retry() },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                                shape = RoundedCornerShape(20.dp)
+                            ) {
+                                Text("Thử lại", color = Color(0xFF1E88E5), fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
@@ -376,8 +442,8 @@ fun WeatherScreen(
                                 }
                             }
                         } else if (cityInput.length >= 2) {
-                            Box(modifier = Modifier.fillMaxSize().padding(top = 40.dp), contentAlignment = Alignment.TopCenter) {
-                                Text("Đang tìm kiếm gợi ý cho '$cityInput'...", color = Color.White.copy(alpha = 0.7f))
+                            Box(modifier = Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) {
+                                Text("Không tìm thấy kết quả phù hợp cho '$cityInput'", color = Color.White.copy(alpha = 0.7f), fontSize = 16.sp)
                             }
                         }
                     }

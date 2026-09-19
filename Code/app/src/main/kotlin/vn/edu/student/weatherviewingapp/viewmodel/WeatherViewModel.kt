@@ -29,6 +29,8 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
     private val _favorites = MutableStateFlow<List<LocationResult>>(favoriteStore.loadFavorites())
     val favorites: StateFlow<List<LocationResult>> = _favorites.asStateFlow()
 
+    private var lastAction: (() -> Unit)? = null
+
     init {
         appContainer.weatherCache.load()?.let { cached ->
             _uiState.value = WeatherUiState.Success(
@@ -84,8 +86,25 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
         return false
     }
 
+    fun retry() {
+        lastAction?.invoke()
+    }
+
+    private fun getFriendlyErrorMessage(e: Exception): String {
+        val msg = e.localizedMessage ?: ""
+        return when {
+            e is java.net.UnknownHostException -> "Không có kết nối mạng. Vui lòng kiểm tra kết nối Wifi/3G của bạn."
+            e is java.net.SocketTimeoutException -> "Kết nối quá hạn. Vui lòng thử lại sau."
+            e is retrofit2.HttpException && e.code() == 401 -> "Lỗi xác thực (API Key không hợp lệ)."
+            e is retrofit2.HttpException && e.code() == 404 -> "Không tìm thấy dữ liệu khu vực này."
+            e is retrofit2.HttpException && e.code() == 429 -> "Đã vượt quá giới hạn lượt truy cập API."
+            else -> "Đã xảy ra lỗi: $msg"
+        }
+    }
+
     fun fetchWeather(city: String) {
         if (city.isBlank()) return
+        lastAction = { fetchWeather(city) }
         _uiState.value = WeatherUiState.Loading
         viewModelScope.launch {
             if (isApiKeyInvalid()) return@launch
@@ -93,12 +112,13 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
                 val weather = repository.getWeather(city)
                 fetchFullWeatherData(weather)
             } catch (e: Exception) {
-                _uiState.value = WeatherUiState.Error(e.localizedMessage ?: "Unknown Error")
+                _uiState.value = WeatherUiState.Error(getFriendlyErrorMessage(e))
             }
         }
     }
 
     fun fetchWeatherByCoords(lat: Double, lon: Double, name: String? = null) {
+        lastAction = { fetchWeatherByCoords(lat, lon, name) }
         _uiState.value = WeatherUiState.Loading
         viewModelScope.launch {
             if (isApiKeyInvalid()) return@launch
@@ -107,7 +127,7 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
                 val finalWeather = if (name != null) weather.copy(cityName = name) else weather
                 fetchFullWeatherData(finalWeather)
             } catch (e: Exception) {
-                _uiState.value = WeatherUiState.Error(e.localizedMessage ?: "Unknown Error")
+                _uiState.value = WeatherUiState.Error(getFriendlyErrorMessage(e))
             }
         }
     }
