@@ -3,6 +3,9 @@ package vn.edu.student.weatherviewingapp
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -57,6 +60,7 @@ fun WeatherScreen(
     viewModel: WeatherViewModel = viewModel()
 ) {
     val context = LocalContext.current
+    val isOffline = rememberIsOffline()
 
     // Lưu lựa chọn đơn vị nhiệt độ của người dùng.
     val prefs = remember {
@@ -453,7 +457,11 @@ fun WeatherScreen(
 
                             Text(
                                 text =
-                                    "Tìm kiếm quận/huyện hoặc dùng GPS.",
+                                    if (isOffline) {
+                                        "Bạn đang ngoại tuyến. Hãy kết nối Internet để tải dữ liệu thời tiết."
+                                    } else {
+                                        "Tìm kiếm quận/huyện hoặc dùng GPS."
+                                    },
                                 color =
                                     Color.White,
                                 fontSize =
@@ -477,6 +485,42 @@ fun WeatherScreen(
                         }
 
                         is WeatherUiState.Success -> {
+
+                            // Mục 10: cảnh báo khi mất mạng hoặc đang hiển thị cache.
+                            if (isOffline || state.isFromCache) {
+                                Surface(
+                                    color = Color(0xFFFFF3CD),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 12.dp, bottom = 12.dp)
+                                ) {
+                                    Column(modifier = Modifier.padding(14.dp)) {
+                                        Text(
+                                            text = if (isOffline) {
+                                                "Bạn đang ngoại tuyến"
+                                            } else {
+                                                "Đang hiển thị dữ liệu đã lưu"
+                                            },
+                                            color = Color(0xFF664D03),
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 15.sp
+                                        )
+
+                                        Spacer(modifier = Modifier.height(4.dp))
+
+                                        Text(
+                                            text = if (isOffline) {
+                                                "Đây là dữ liệu thời tiết tải gần nhất, có thể không còn mới."
+                                            } else {
+                                                "Đây là dữ liệu từ lần cập nhật trước. Hãy tải lại để xem thông tin mới."
+                                            },
+                                            color = Color(0xFF664D03),
+                                            fontSize = 13.sp
+                                        )
+                                    }
+                                }
+                            }
 
                             WeatherContent(
                                 state = state,
@@ -510,7 +554,11 @@ fun WeatherScreen(
 
                             Text(
                                 text =
-                                    state.message,
+                                    if (isOffline) {
+                                        "Không có kết nối Internet và không có dữ liệu thời tiết khả dụng. Hãy kết nối mạng rồi thử lại."
+                                    } else {
+                                        state.message
+                                    },
                                 color =
                                     Color.White,
                                 modifier =
@@ -1582,4 +1630,53 @@ fun getDayNameVi(
         .replaceFirstChar {
             it.uppercase()
         }
+}
+
+// =====================================================
+// OFFLINE CACHE: THÔNG BÁO TRẠNG THÁI MẠNG (MỤC 10)
+// =====================================================
+
+private fun hasInternet(manager: ConnectivityManager): Boolean {
+    val network = manager.activeNetwork ?: return false
+    val capabilities = manager.getNetworkCapabilities(network) ?: return false
+    return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+}
+
+@Composable
+private fun rememberIsOffline(): Boolean {
+    val context = LocalContext.current
+    val manager = remember(context) {
+        context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    }
+    var isOffline by remember(manager) {
+        mutableStateOf(!hasInternet(manager))
+    }
+
+    DisposableEffect(manager) {
+        val executor = ContextCompat.getMainExecutor(context)
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            private fun refresh() {
+                executor.execute { isOffline = !hasInternet(manager) }
+            }
+
+            override fun onAvailable(network: Network) = refresh()
+
+            override fun onLost(network: Network) = refresh()
+
+            override fun onCapabilitiesChanged(
+                network: Network,
+                networkCapabilities: NetworkCapabilities
+            ) = refresh()
+        }
+
+        manager.registerDefaultNetworkCallback(callback)
+        isOffline = !hasInternet(manager)
+
+        onDispose {
+            manager.unregisterNetworkCallback(callback)
+        }
+    }
+
+    return isOffline
 }
