@@ -788,7 +788,61 @@ private fun formatTemperature(
 // =====================================================
 // WEATHER CONTENT
 // =====================================================
+data class DailyForecastSummary(
+    val timestamp: Long,
+    val minTemp: Double,
+    val maxTemp: Double,
+    val representativeItem: ForecastItem
+)
 
+private fun buildDailyForecast(
+    forecastItems: List<ForecastItem>
+): List<DailyForecastSummary> {
+
+    val dayFormatter =
+        SimpleDateFormat(
+            "yyyy-MM-dd",
+            Locale.getDefault()
+        )
+
+    return forecastItems
+        .groupBy { item ->
+            dayFormatter.format(
+                Date(item.dt * 1000L)
+            )
+        }
+        .values
+        .map { dayItems ->
+
+            // Lấy toàn bộ các mốc 3 giờ trong cùng ngày
+            val minTemp =
+                dayItems.minOf {
+                    it.main.tempMin
+                }
+
+            val maxTemp =
+                dayItems.maxOf {
+                    it.main.tempMax
+                }
+
+            // Chọn một mốc ở giữa ngày để lấy icon
+            // và tình trạng thời tiết đại diện.
+            val representativeItem =
+                dayItems[
+                    dayItems.size / 2
+                ]
+
+            DailyForecastSummary(
+                timestamp =
+                    dayItems.first().dt,
+                minTemp = minTemp,
+                maxTemp = maxTemp,
+                representativeItem =
+                    representativeItem
+            )
+        }
+        .take(3)
+}
 @Composable
 fun WeatherContent(
     state: WeatherUiState.Success,
@@ -801,6 +855,22 @@ fun WeatherContent(
 
     val main =
         weather.main
+
+    val dailyForecast =
+        buildDailyForecast(
+            state.forecast.list
+        )
+
+    val todayForecast =
+        dailyForecast.firstOrNull()
+
+    val todayMin =
+        todayForecast?.minTemp
+            ?: main.tempMin
+
+    val todayMax =
+        todayForecast?.maxTemp
+            ?: main.tempMax
 
     Spacer(
         modifier =
@@ -909,21 +979,18 @@ fun WeatherContent(
             "${weather.weather.firstOrNull()?.main.orEmpty()} " +
                     "${
                         formatTemperature(
-                            main.tempMax,
+                            todayMax,
                             temperatureUnit
                         )
                     } / ${
                         formatTemperature(
-                            main.tempMin,
+                            todayMin,
                             temperatureUnit
                         )
                     }",
-        fontSize =
-            20.sp,
-        color =
-            Color.White,
-        fontWeight =
-            FontWeight.Medium
+        fontSize = 20.sp,
+        color = Color.White,
+        fontWeight = FontWeight.Medium
     )
 
     Spacer(
@@ -1105,20 +1172,11 @@ fun WeatherContent(
              * 3 giờ/lần.
              * 8 phần tử tương ứng khoảng 24 giờ.
              */
-            val dailyForecast =
-                state.forecast
-                    .list
-                    .filterIndexed {
-                            index, _ ->
-
-                        index % 8 == 0
-                    }
-                    .take(3)
 
             dailyForecast
                 .forEachIndexed {
                         index,
-                        item ->
+                        daily ->
 
                     val dayLabel =
                         when (index) {
@@ -1131,14 +1189,13 @@ fun WeatherContent(
 
                             else ->
                                 getDayNameVi(
-                                    item.dt
+                                    daily.timestamp
                                 )
                         }
 
                     ForecastRow(
-                        item = item,
-                        dayLabel =
-                            dayLabel,
+                        daily = daily,
+                        dayLabel = dayLabel,
                         temperatureUnit =
                             temperatureUnit
                     )
@@ -1236,7 +1293,7 @@ fun WeatherContent(
                         "Thấp nhất",
                     value =
                         formatTemperature(
-                            main.tempMin,
+                            todayMin,
                             temperatureUnit
                         )
                 )
@@ -1281,7 +1338,7 @@ fun WeatherContent(
                         "Cao nhất",
                     value =
                         formatTemperature(
-                            main.tempMax,
+                            todayMax,
                             temperatureUnit
                         )
                 )
@@ -1320,10 +1377,13 @@ fun WeatherContent(
 
 @Composable
 fun ForecastRow(
-    item: ForecastItem,
+    daily: DailyForecastSummary,
     dayLabel: String,
     temperatureUnit: String
 ) {
+
+    val item =
+        daily.representativeItem
 
     Row(
         modifier =
@@ -1392,12 +1452,12 @@ fun ForecastRow(
             text =
                 "${
                     formatTemperature(
-                        item.main.tempMax,
+                        daily.maxTemp,
                         temperatureUnit
                     )
                 } / ${
                     formatTemperature(
-                        item.main.tempMin,
+                        daily.minTemp,
                         temperatureUnit
                     )
                 }",
