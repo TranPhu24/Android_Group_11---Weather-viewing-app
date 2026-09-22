@@ -13,6 +13,7 @@ import vn.edu.student.weatherviewingapp.data.LocationResult
 import vn.edu.student.weatherviewingapp.ui.CompareUiState
 import vn.edu.student.weatherviewingapp.ui.LocationWeatherComparison
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.supervisorScope
 
 class CompareViewModel(application: Application) : AndroidViewModel(application) {
     private val appContainer = (application as WeatherApplication).container
@@ -74,21 +75,30 @@ class CompareViewModel(application: Application) : AndroidViewModel(application)
         _uiState.value = CompareUiState.Loading
         viewModelScope.launch {
             try {
-                val comparisons = selected.map { location ->
-                    async {
-                        val weather = repository.getWeatherByCoords(location.lat, location.lon)
-                        val air = repository.getAirPollution(location.lat, location.lon)
-                        LocationWeatherComparison(
-                            name = location.localNames?.get("vi") ?: location.name,
-                            weather = weather,
-                            airPollution = air
-                        )
-                    }
-                }.awaitAll()
-                
+                val comparisons = supervisorScope {
+                    selected.map { location ->
+                        async {
+                            try {
+                                val weather = repository.getWeatherByCoords(location.lat, location.lon)
+                                val air = repository.getAirPollution(location.lat, location.lon)
+                                LocationWeatherComparison(
+                                    name = location.localNames?.get("vi") ?: location.name,
+                                    weather = weather,
+                                    airPollution = air,
+                                    isError = false
+                                )
+                            } catch (e: Exception) {
+                                LocationWeatherComparison(
+                                    name = location.localNames?.get("vi") ?: location.name,
+                                    isError = true
+                                )
+                            }
+                        }
+                    }.awaitAll()
+                }
                 _uiState.value = CompareUiState.Success(comparisons)
             } catch (e: Exception) {
-                _uiState.value = CompareUiState.Error(e.localizedMessage ?: "Lỗi khi tải dữ liệu so sánh")
+                _uiState.value = CompareUiState.Error("Không thể kết nối đến máy chủ thời tiết")
             }
         }
     }

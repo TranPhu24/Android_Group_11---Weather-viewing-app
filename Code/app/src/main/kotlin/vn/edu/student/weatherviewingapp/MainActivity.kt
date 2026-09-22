@@ -14,10 +14,16 @@ import vn.edu.student.weatherviewingapp.alerts.WeatherAlertNotifier
 
 
 class MainActivity : ComponentActivity() {
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WeatherAlertNotifier.createNotificationChannel(this)
         WeatherRefreshScheduler.schedule(this)
+        androidx.work.WorkManager.getInstance(this).enqueue(
+            androidx.work.OneTimeWorkRequestBuilder<vn.edu.student.weatherviewingapp.worker.WeatherRefreshWorker>().build()
+        )
+
         setContent {
             WeatherViewingAppTheme {
                 // A surface container using the 'background' color from the theme
@@ -31,3 +37,4 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+

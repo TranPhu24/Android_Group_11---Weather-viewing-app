@@ -14,6 +14,7 @@ sealed interface CompareUiState {
 
 data class LocationWeatherComparison(
     val name: String,
-    val weather: WeatherResponse,
-    val airPollution: AirPollutionResponse
+    val weather: WeatherResponse? = null,
+    val airPollution: AirPollutionResponse? = null,
+    val isError: Boolean = false
 )
