@@ -8,20 +8,17 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import vn.edu.student.weatherviewingapp.BuildConfig
-import vn.edu.student.weatherviewingapp.data.FavoriteLocationStore
+import vn.edu.student.weatherviewingapp.WeatherApplication
 import vn.edu.student.weatherviewingapp.data.LocationResult
-import vn.edu.student.weatherviewingapp.repository.WeatherRepository
 import vn.edu.student.weatherviewingapp.ui.CompareUiState
 import vn.edu.student.weatherviewingapp.ui.LocationWeatherComparison
-
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.supervisorScope
 
 class CompareViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = WeatherRepository()
-    private val favoriteStore = FavoriteLocationStore(application)
-    private val apiKey = BuildConfig.WEATHER_API_KEY
+    private val appContainer = (application as WeatherApplication).container
+    private val repository = appContainer.weatherRepository
+    private val favoriteStore = appContainer.favoriteStore
 
     private val _uiState = MutableStateFlow<CompareUiState>(CompareUiState.Empty)
     val uiState: StateFlow<CompareUiState> = _uiState.asStateFlow()
@@ -82,8 +79,8 @@ class CompareViewModel(application: Application) : AndroidViewModel(application)
                     selected.map { location ->
                         async {
                             try {
-                                val weather = repository.getWeatherByCoords(location.lat, location.lon, apiKey)
-                                val air = repository.getAirPollution(location.lat, location.lon, apiKey)
+                                val weather = repository.getWeatherByCoords(location.lat, location.lon)
+                                val air = repository.getAirPollution(location.lat, location.lon)
                                 LocationWeatherComparison(
                                     name = location.localNames?.get("vi") ?: location.name,
                                     weather = weather,

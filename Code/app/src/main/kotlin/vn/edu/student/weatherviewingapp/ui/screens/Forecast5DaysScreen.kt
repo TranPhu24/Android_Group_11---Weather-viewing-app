@@ -29,6 +29,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import vn.edu.student.weatherviewingapp.data.ForecastItem
 import vn.edu.student.weatherviewingapp.data.WeatherResponse
+import vn.edu.student.weatherviewingapp.data.getDailyForecastSummaries
+import vn.edu.student.weatherviewingapp.ui.components.ForecastRow
+import vn.edu.student.weatherviewingapp.ui.components.GlassCard
 
 @Composable
 fun Forecast5DaysScreen(
@@ -87,35 +90,9 @@ fun Forecast5DaysScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            GlassCard {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    fiveDaysList.forEachIndexed { index, item ->
-                        if (index == 0) {
-                            ForecastRow(
-                                dayLabel = "Hôm nay",
-                                weatherMain = currentWeather.weather.firstOrNull()?.main ?: "",
-                                icon = currentWeather.weather.firstOrNull()?.icon ?: "01d",
-                                tempMax = currentWeather.main.tempMax.toInt(),
-                                tempMin = currentWeather.main.tempMin.toInt()
-                            )
-                        } else {
-                            ForecastRow(item.dayLabel,
-                                weatherMain = item.weatherMain,
-                                icon = item.icon,
-                                tempMax = item.tempMax,
-                                tempMin = item.tempMin
-                            )
-                        }
-
-                        if (index < fiveDaysList.size - 1) {
-                            HorizontalDivider(
-                                color = Color.White.copy(alpha = 0.15f),
-                                modifier = Modifier.padding(vertical = 14.dp)
-                            )
-                        }
-                    }
-                }
-            }
+            vn.edu.student.weatherviewingapp.ui.components.ForecastChartRow(
+                fiveDaysList = fiveDaysList
+            )
         }
     }
 }

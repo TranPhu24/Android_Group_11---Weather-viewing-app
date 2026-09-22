@@ -57,7 +57,8 @@ data class ForecastItem(
     val dt: Long,
     val main: Main,
     val weather: List<Weather>,
-    @SerialName("dt_txt") val dtTxt: String
+    @SerialName("dt_txt") val dtTxt: String,
+    val wind: Wind? = null
 )
 
 @Serializable

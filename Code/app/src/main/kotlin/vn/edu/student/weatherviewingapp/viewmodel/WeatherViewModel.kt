@@ -3,25 +3,22 @@ package vn.edu.student.weatherviewingapp.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import vn.edu.student.weatherviewingapp.BuildConfig
-import vn.edu.student.weatherviewingapp.alerts.WeatherAlertNotifier
+import vn.edu.student.weatherviewingapp.WeatherApplication
 import vn.edu.student.weatherviewingapp.data.LocationResult
-import vn.edu.student.weatherviewingapp.data.WeatherCache
 import vn.edu.student.weatherviewingapp.data.WeatherSnapshot
-import vn.edu.student.weatherviewingapp.data.FavoriteLocationStore
-import vn.edu.student.weatherviewingapp.repository.WeatherRepository
 import vn.edu.student.weatherviewingapp.data.WeatherResponse
 import vn.edu.student.weatherviewingapp.ui.WeatherUiState
 
 class WeatherViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = WeatherRepository()
-    private val weatherCache = WeatherCache(application)
-    private val favoriteStore = FavoriteLocationStore(application)
+    
+    private val appContainer = (application as WeatherApplication).container
+    private val repository = appContainer.weatherRepository
+    private val favoriteStore = appContainer.favoriteStore
+    private val weatherSyncManager = appContainer.weatherSyncManager
 
     private val _uiState = MutableStateFlow<WeatherUiState>(WeatherUiState.Initial)
     val uiState: StateFlow<WeatherUiState> = _uiState.asStateFlow()
@@ -32,10 +29,10 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
     private val _favorites = MutableStateFlow<List<LocationResult>>(favoriteStore.loadFavorites())
     val favorites: StateFlow<List<LocationResult>> = _favorites.asStateFlow()
 
-    private val apiKey = BuildConfig.WEATHER_API_KEY
+    private var lastAction: (() -> Unit)? = null
 
     init {
-        weatherCache.load()?.let { cached ->
+        appContainer.weatherCache.load()?.let { cached ->
             _uiState.value = WeatherUiState.Success(
                 cached.weather,
                 cached.forecast,
@@ -53,7 +50,7 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
         }
         viewModelScope.launch {
             try {
-                val results = repository.searchLocations(query, apiKey)
+                val results = repository.searchLocations(query)
                 _suggestions.value = results
             } catch (e: Exception) {
                 _suggestions.value = emptyList()
@@ -81,48 +78,62 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
         return _favorites.value.any { it.lat == lat && it.lon == lon }
     }
 
+    private fun isApiKeyInvalid(): Boolean {
+        if (vn.edu.student.weatherviewingapp.BuildConfig.WEATHER_API_KEY == "YOUR_API_KEY_HERE" || vn.edu.student.weatherviewingapp.BuildConfig.WEATHER_API_KEY.isBlank()) {
+            _uiState.value = WeatherUiState.Error("Please provide OPEN_WEATHER_API_KEY in local.properties")
+            return true
+        }
+        return false
+    }
+
+    fun retry() {
+        lastAction?.invoke()
+    }
+
+    private fun getFriendlyErrorMessage(e: Exception): String {
+        val msg = e.localizedMessage ?: ""
+        return when {
+            e is java.net.UnknownHostException -> "Không có kết nối mạng. Vui lòng kiểm tra kết nối Wifi/3G của bạn."
+            e is java.net.SocketTimeoutException -> "Kết nối quá hạn. Vui lòng thử lại sau."
+            e is retrofit2.HttpException && e.code() == 401 -> "Lỗi xác thực (API Key không hợp lệ)."
+            e is retrofit2.HttpException && e.code() == 404 -> "Không tìm thấy dữ liệu khu vực này."
+            e is retrofit2.HttpException && e.code() == 429 -> "Đã vượt quá giới hạn lượt truy cập API."
+            else -> "Đã xảy ra lỗi: $msg"
+        }
+    }
+
     fun fetchWeather(city: String) {
         if (city.isBlank()) return
+        lastAction = { fetchWeather(city) }
         _uiState.value = WeatherUiState.Loading
         viewModelScope.launch {
+            if (isApiKeyInvalid()) return@launch
             try {
-                if (isApiKeyInvalid()) return@launch
-                val weather = repository.getWeather(city, apiKey)
+                val weather = repository.getWeather(city)
                 fetchFullWeatherData(weather)
             } catch (e: Exception) {
-                _uiState.value = WeatherUiState.Error(e.localizedMessage ?: "Unknown Error")
+                _uiState.value = WeatherUiState.Error(getFriendlyErrorMessage(e))
             }
         }
     }
 
     fun fetchWeatherByCoords(lat: Double, lon: Double, name: String? = null) {
+        lastAction = { fetchWeatherByCoords(lat, lon, name) }
         _uiState.value = WeatherUiState.Loading
         viewModelScope.launch {
+            if (isApiKeyInvalid()) return@launch
             try {
-                if (isApiKeyInvalid()) return@launch
-                val weather = repository.getWeatherByCoords(lat, lon, apiKey)
-                // Use provided name if available (e.g., from search or GPS reverse geocoding)
+                val weather = repository.getWeatherByCoords(lat, lon)
                 val finalWeather = if (name != null) weather.copy(cityName = name) else weather
                 fetchFullWeatherData(finalWeather)
             } catch (e: Exception) {
-                _uiState.value = WeatherUiState.Error(e.localizedMessage ?: "Unknown Error")
+                _uiState.value = WeatherUiState.Error(getFriendlyErrorMessage(e))
             }
         }
     }
 
     private suspend fun fetchFullWeatherData(weather: WeatherResponse) {
-        val forecastDeferred = viewModelScope.async {
-            repository.getForecastByCoords(weather.coord.lat, weather.coord.lon, apiKey)
-        }
-        val pollutionDeferred = viewModelScope.async { repository.getAirPollution(weather.coord.lat, weather.coord.lon, apiKey) }
-
-        val snapshot = WeatherSnapshot(
-            weather = weather,
-            forecast = forecastDeferred.await(),
-            airPollution = pollutionDeferred.await()
-        )
-        weatherCache.save(snapshot)
-        WeatherAlertNotifier.notifyIfNeeded(getApplication(), snapshot)
+        val snapshot = weatherSyncManager.syncFullWeatherData(weather)
         _uiState.value = WeatherUiState.Success(
             snapshot.weather,
             snapshot.forecast,
@@ -132,26 +143,16 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun refreshCachedWeatherInBackground(cached: WeatherSnapshot) {
-        if (apiKey.isBlank()) return
         viewModelScope.launch {
             try {
                 val weather = repository.getWeatherByCoords(
                     cached.weather.coord.lat,
-                    cached.weather.coord.lon,
-                    apiKey
+                    cached.weather.coord.lon
                 )
                 fetchFullWeatherData(weather)
             } catch (_: Exception) {
                 // Keep displaying the cache; its age banner tells the user it could not be refreshed.
             }
         }
-    }
-
-    private fun isApiKeyInvalid(): Boolean {
-        if (apiKey == "YOUR_API_KEY_HERE" || apiKey.isBlank()) {
-            _uiState.value = WeatherUiState.Error("Please provide OPEN_WEATHER_API_KEY in local.properties")
-            return true
-        }
-        return false
     }
 }
