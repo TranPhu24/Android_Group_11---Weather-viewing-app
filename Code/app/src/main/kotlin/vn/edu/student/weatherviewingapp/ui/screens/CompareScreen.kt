@@ -152,7 +152,31 @@ fun CompareScreen(
                             }
                         }
                         is CompareUiState.Success -> {
-                            ComparisonContent(state.comparisons)
+                            val hasAnyError = state.comparisons.any { it.isError }
+                            if (hasAnyError) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(
+                                            Icons.Default.WifiOff,
+                                            contentDescription = null,
+                                            tint = Color.White.copy(alpha = 0.3f),
+                                            modifier = Modifier.size(64.dp)
+                                        )
+                                        Spacer(modifier = Modifier.height(16.dp))
+                                        Text(
+                                            "Lỗi khi tải dữ liệu so sánh\nVui lòng kiểm tra kết nối mạng.",
+                                            color = Color.White.copy(alpha = 0.7f),
+                                            textAlign = TextAlign.Center,
+                                            fontSize = 15.sp
+                                        )
+                                    }
+                                }
+                            } else {
+                                ComparisonContent(state.comparisons)
+                            }
                         }
                         is CompareUiState.Error -> {
                             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -230,7 +254,7 @@ fun ComparisonContent(comparisons: List<LocationWeatherComparison>) {
 
 @Composable
 fun TemperatureBarChart(comparisons: List<LocationWeatherComparison>) {
-    val maxTemp = comparisons.maxOfOrNull { it.weather.main.temp } ?: 40.0
+    val maxTemp = comparisons.mapNotNull { it.weather?.main?.temp }.maxOrNull() ?: 40.0
     val displayMax = (maxTemp + 5).coerceAtLeast(30.0)
 
     Surface(
@@ -246,7 +270,8 @@ fun TemperatureBarChart(comparisons: List<LocationWeatherComparison>) {
             val canvasWidth = size.width
             val canvasHeight = size.height
             val barWidth = 45.dp.toPx()
-            val spacing = (canvasWidth - (barWidth * comparisons.size)) / (comparisons.size + 1)
+            val validComparisons = comparisons.filter { !it.isError && it.weather != null }
+            val spacing = if (validComparisons.isEmpty()) 0f else (canvasWidth - (barWidth * validComparisons.size)) / (validComparisons.size + 1)
 
             val gridLines = 4
             for (i in 0..gridLines) {
@@ -259,33 +284,33 @@ fun TemperatureBarChart(comparisons: List<LocationWeatherComparison>) {
                 )
             }
 
-            comparisons.forEachIndexed { index, item ->
-                val temp = item.weather.main.temp
+            validComparisons.forEachIndexed { index, item ->
+                val temp = item.weather?.main?.temp ?: 0.0
                 val barHeight = (temp / displayMax) * canvasHeight
                 val x = spacing + (index * (barWidth + spacing))
                 val y = canvasHeight - barHeight.toFloat()
 
-                                val barGradient = Brush.verticalGradient(
+                val barGradient = Brush.verticalGradient(
                     colors = if (temp > 30) listOf(Color(0xFFFF8A65), Color(0xFFE64A19))
                             else if (temp > 20) listOf(Color(0xFFFFF176), Color(0xFFFFD54F))
                             else listOf(Color(0xFFE0F7FA), Color(0xFF80DEEA))
                 )
 
-                                drawRoundRect(
+                drawRoundRect(
                     brush = barGradient,
                     topLeft = Offset(x, y),
                     size = Size(barWidth, barHeight.toFloat()),
                     cornerRadius = CornerRadius(12.dp.toPx(), 12.dp.toPx())
                 )
 
-                                drawRoundRect(
+                drawRoundRect(
                     color = Color.White.copy(alpha = 0.2f),
                     topLeft = Offset(x + 5.dp.toPx(), y + 5.dp.toPx()),
                     size = Size(barWidth / 4, barHeight.toFloat() - 10.dp.toPx()),
                     cornerRadius = CornerRadius(4.dp.toPx())
                 )
 
-                                drawContext.canvas.nativeCanvas.drawText(
+                drawContext.canvas.nativeCanvas.drawText(
                     "${temp.toInt()}°",
                     x + barWidth / 2,
                     y - 12.dp.toPx(),
@@ -297,7 +322,7 @@ fun TemperatureBarChart(comparisons: List<LocationWeatherComparison>) {
                     }
                 )
 
-                                val displayName = if (item.name.length > 8) item.name.take(7) + ".." else item.name
+                val displayName = if (item.name.length > 8) item.name.take(7) + ".." else item.name
                 drawContext.canvas.nativeCanvas.drawText(
                     displayName,
                     x + barWidth / 2,
@@ -335,10 +360,10 @@ fun ComparisonCard(item: LocationWeatherComparison) {
             .padding(horizontal = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-                Box(modifier = Modifier.height(30.dp), contentAlignment = Alignment.Center) {
+        Box(modifier = Modifier.height(30.dp), contentAlignment = Alignment.Center) {
             Text(
                 text = item.name,
-                color = Color.White,
+                color = if (item.isError) Color(0xFFFF8A80) else Color.White,
                 fontWeight = FontWeight.ExtraBold,
                 fontSize = 14.sp,
                 maxLines = 1,
@@ -346,22 +371,30 @@ fun ComparisonCard(item: LocationWeatherComparison) {
             )
         }
 
-                StatValueBox("${item.weather.main.feelsLike.toInt()}°")
-        StatValueBox("${item.weather.main.humidity}%")
-        StatValueBox("${item.weather.wind.speed.toInt()} km/h")
-        
-        val aqi = item.airPollution.list.firstOrNull()?.main?.aqi ?: 0
-        val aqiColor = when(aqi) {
-            1 -> Color(0xFF66BB6A)
-            2 -> Color(0xFFFFEE58)
-            3 -> Color(0xFFFFA726)
-            4 -> Color(0xFFFF7043)
-            5 -> Color(0xFFEF5350)
-            else -> Color.White
+        if (item.isError || item.weather == null) {
+            StatValueBox("-", Color.White.copy(alpha = 0.3f))
+            StatValueBox("-", Color.White.copy(alpha = 0.3f))
+            StatValueBox("-", Color.White.copy(alpha = 0.3f))
+            StatValueBox("Lỗi", Color(0xFFFF8A80))
+            StatValueBox("-", Color.White.copy(alpha = 0.3f))
+        } else {
+            StatValueBox("${item.weather.main.feelsLike.toInt()}°")
+            StatValueBox("${item.weather.main.humidity}%")
+            StatValueBox("${item.weather.wind.speed.toInt()} km/h")
+            
+            val aqi = item.airPollution?.list?.firstOrNull()?.main?.aqi ?: 0
+            val aqiColor = when(aqi) {
+                1 -> Color(0xFF66BB6A)
+                2 -> Color(0xFFFFEE58)
+                3 -> Color(0xFFFFA726)
+                4 -> Color(0xFFFF7043)
+                5 -> Color(0xFFEF5350)
+                else -> Color.White
+            }
+            StatValueBox(if (aqi > 0) "AQI $aqi" else "N/A", aqiColor)
+            
+            StatValueBox("${item.weather.main.pressure}")
         }
-        StatValueBox("AQI $aqi", aqiColor)
-        
-        StatValueBox("${item.weather.main.pressure}")
     }
 }
 
