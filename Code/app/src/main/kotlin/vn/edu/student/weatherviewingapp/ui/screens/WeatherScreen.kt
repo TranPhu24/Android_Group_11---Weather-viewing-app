@@ -21,6 +21,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -36,6 +37,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -253,93 +255,98 @@ fun WeatherScreen(
                             }
                         }
                     } else {
-                        IconButton(onClick = {
-                            if (hasLocationPermission(context)) {
-                                checkLocationSettingsAndGetLocation(
-                                    context,
-                                    settingResultRequest
-                                ) { lat, lon ->
-                                    viewModel.fetchWeatherByCoords(lat, lon)
+                        Box(
+                            modifier = Modifier.fillMaxWidth().height(64.dp)
+                        ) {
+                            // Bên trái
+                            IconButton(
+                                onClick = { showSearch = true },
+                                modifier = Modifier.align(Alignment.CenterStart)
+                            ) {
+                                Icon(Icons.Default.Search, contentDescription = "Tìm kiếm", tint = Color.White)
+                            }
+
+                            // Ở giữa - Căn giữa tuyệt đối
+                            val title = when (val state = uiState) {
+                                is WeatherUiState.Success -> state.weather.cityName
+                                else -> "Thời tiết"
+                            }
+                            Text(
+                                text = title,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 20.sp,
+                                modifier = Modifier.align(Alignment.Center).padding(horizontal = 48.dp),
+                                textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+
+                            // Bên phải
+                            Row(
+                                modifier = Modifier.align(Alignment.CenterEnd),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                if (uiState is WeatherUiState.Success) {
+                                    val success = uiState as WeatherUiState.Success
+                                    val isFav = favorites.any { it.lat == success.weather.coord.lat && it.lon == success.weather.coord.lon }
+                                    IconButton(onClick = {
+                                        viewModel.toggleFavorite(
+                                            vn.edu.student.weatherviewingapp.data.LocationResult(
+                                                name = success.weather.cityName,
+                                                lat = success.weather.coord.lat,
+                                                lon = success.weather.coord.lon,
+                                                country = success.weather.sys.country ?: "VN",
+                                                localNames = mapOf("vi" to success.weather.cityName)
+                                            )
+                                        )
+                                    }) {
+                                        Icon(
+                                            if (isFav) Icons.Default.Star else Icons.Default.StarOutline,
+                                            contentDescription = "Yêu thích",
+                                            tint = if (isFav) Color.Yellow else Color.White
+                                        )
+                                    }
                                 }
-                            } else {
-                                locationPermissionLauncher.launch(
-                                    arrayOf(
-                                        Manifest.permission.ACCESS_FINE_LOCATION,
-                                        Manifest.permission.ACCESS_COARSE_LOCATION
-                                    )
-                                )
+
+                                var menuExpanded by remember { mutableStateOf(false) }
+                                Box {
+                                    IconButton(onClick = { menuExpanded = true }) {
+                                        Icon(Icons.Default.MoreVert, contentDescription = "Thêm", tint = Color.White)
+                                    }
+                                    DropdownMenu(
+                                        expanded = menuExpanded,
+                                        onDismissRequest = { menuExpanded = false }
+                                    ) {
+                                        DropdownMenuItem(
+                                            text = { Text("Địa điểm đã lưu") },
+                                            onClick = { showFavoritesSheet = true; menuExpanded = false },
+                                            leadingIcon = { Icon(Icons.Default.Bookmarks, contentDescription = null) }
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text("So sánh thời tiết") },
+                                            onClick = { showComparePage = true; menuExpanded = false },
+                                            leadingIcon = { Icon(Icons.Default.Compare, contentDescription = null) }
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text("Cảnh báo thời tiết") },
+                                            onClick = { showAlertSettings = true; menuExpanded = false },
+                                            leadingIcon = { Icon(Icons.Default.Notifications, contentDescription = null) }
+                                        )
+                                        HorizontalDivider(color = Color.Gray.copy(alpha = 0.2f), modifier = Modifier.padding(vertical = 4.dp))
+                                        DropdownMenuItem(
+                                            text = { Text("Đổi đơn vị: ${if (temperatureUnit == "C") "°F" else "°C"}") },
+                                            onClick = {
+                                                val newUnit = if (temperatureUnit == "C") "F" else "C"
+                                                temperatureUnit = newUnit
+                                                unitPreferences.edit().putString("temperature_unit", newUnit).apply()
+                                                menuExpanded = false
+                                            },
+                                            leadingIcon = { Icon(Icons.Default.Thermostat, contentDescription = null) }
+                                        )
+                                    }
+                                }
                             }
-                        }) {
-                            Icon(
-                                Icons.Default.MyLocation,
-                                contentDescription = "Vị trí của tôi",
-                                tint = Color.White
-                            )
-                        }
-
-                        val title = when (val state = uiState) {
-                            is WeatherUiState.Success -> state.weather.cityName
-                            else -> "Thời tiết"
-                        }
-                        Text(
-                            text = title,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp,
-                            modifier = Modifier.weight(1f),
-                            textAlign = TextAlign.Center
-                        )
-
-                        if (uiState is WeatherUiState.Success) {
-                            val success = uiState as WeatherUiState.Success
-                            val isFav = viewModel.isFavorite(success.weather.coord.lat, success.weather.coord.lon)
-                            IconButton(onClick = {
-                                viewModel.toggleFavorite(
-                                    vn.edu.student.weatherviewingapp.data.LocationResult(
-                                        name = success.weather.cityName,
-                                        lat = success.weather.coord.lat,
-                                        lon = success.weather.coord.lon,
-                                        country = success.weather.sys.country ?: "VN",
-                                        localNames = mapOf("vi" to success.weather.cityName)
-                                    )
-                                )
-                            }) {
-                                Icon(
-                                    if (isFav) Icons.Default.Star else Icons.Default.StarOutline,
-                                    contentDescription = "Yêu thích",
-                                    tint = if (isFav) Color.Yellow else Color.White
-                                )
-                            }
-                        }
-
-                        IconButton(onClick = { showFavoritesSheet = true }) {
-                            Icon(
-                                Icons.Default.Bookmarks,
-                                contentDescription = "Danh sách yêu thích",
-                                tint = Color.White
-                            )
-                        }
-
-                        IconButton(onClick = { showSearch = true }) {
-                            Icon(
-                                Icons.Default.Search,
-                                contentDescription = "Tìm kiếm",
-                                tint = Color.White
-                            )
-                        }
-                        IconButton(onClick = { showAlertSettings = true }) {
-                            Icon(
-                                Icons.Default.Notifications,
-                                contentDescription = "Cảnh báo thời tiết",
-                                tint = Color.White
-                            )
-                        }
-                        IconButton(onClick = { showComparePage = true }) {
-                            Icon(
-                                Icons.Default.Compare,
-                                contentDescription = "So sánh",
-                                tint = Color.White
-                            )
                         }
                     }
                 }
@@ -485,6 +492,32 @@ fun WeatherScreen(
             }
         }
 
+        // GPS Floating Action Button
+        FloatingActionButton(
+            onClick = {
+                if (hasLocationPermission(context)) {
+                    checkLocationSettingsAndGetLocation(context, settingResultRequest) { lat, lon ->
+                        viewModel.fetchWeatherByCoords(lat, lon)
+                    }
+                } else {
+                    locationPermissionLauncher.launch(
+                        arrayOf(
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION
+                        )
+                    )
+                }
+            },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(bottom = 40.dp, end = 24.dp),
+            containerColor = Color.White.copy(alpha = 0.95f),
+            contentColor = Color(0xFF1E88E5),
+            shape = androidx.compose.foundation.shape.CircleShape
+        ) {
+            Icon(Icons.Default.MyLocation, contentDescription = "Vị trí của tôi")
+        }
+
         // Overlay Màn hình Dự báo 5 ngày (Full Screen)
         if (show5DaysForecast && uiState is WeatherUiState.Success) {
             val successState = uiState as WeatherUiState.Success
@@ -551,6 +584,39 @@ fun WeatherContent(
         verticalArrangement = Arrangement.SpaceBetween,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            if (isOffline) {
+                Surface(
+                    color = Color(0xFFFFF3CD).copy(alpha = 0.9f),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.padding(bottom = 8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.WifiOff,
+                            contentDescription = null,
+                            tint = Color(0xFF664D03),
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Đang ngoại tuyến (Dữ liệu cũ)",
+                            color = Color(0xFF664D03),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+            CacheFreshnessIndicator(state.refreshedAtMillis)
+        }
+
         // Khối giữa: Chỉ báo Cache, Nhiệt độ & AQI
         Column(
             modifier = Modifier
@@ -559,80 +625,17 @@ fun WeatherContent(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Mục 10 - Thông báo rõ khi thiết bị ngoại tuyến
-            // hoặc đang hiển thị dữ liệu lấy từ cache.
-            if (isOffline || state.isFromCache) {
-                Surface(
-                    color = Color(0xFFFFF3CD),
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(12.dp)
-                    ) {
-                        Text(
-                            text = if (isOffline) {
-                                "Bạn đang ngoại tuyến"
-                            } else {
-                                "Đang hiển thị dữ liệu đã lưu"
-                            },
-                            color = Color(0xFF664D03),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
-                        )
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        Text(
-                            text = if (isOffline) {
-                                "Không có kết nối Internet. Ứng dụng đang hiển thị dữ liệu thời tiết được lưu gần nhất."
-                            } else {
-                                "Đây là dữ liệu từ lần cập nhật trước."
-                            },
-                            color = Color(0xFF664D03),
-                            fontSize = 13.sp
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-            }
-
-            CacheFreshnessIndicator(state.refreshedAtMillis)
-
-            Spacer(modifier = Modifier.height(8.dp))
-
             Text(
                 text = formatTemperature(
                     main.temp,
                     temperatureUnit
                 ),
-                fontSize = 90.sp,
+                fontSize = 110.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
             )
 
-            // Mục 8 - Chọn °C / °F.
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                FilterChip(
-                    selected = temperatureUnit == "C",
-                    onClick = { onUnitChange("C") },
-                    label = { Text("°C") }
-                )
-
-                FilterChip(
-                    selected = temperatureUnit == "F",
-                    onClick = { onUnitChange("F") },
-                    label = { Text("°F") }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(2.dp))
 
             Text(
                 text = "${weather.weather.firstOrNull()?.main} " +
@@ -741,7 +744,7 @@ fun WeatherContent(
                             Text("Xem dự báo 5 ngày", color = Color.White, fontWeight = FontWeight.Bold)
                             Spacer(modifier = Modifier.width(8.dp))
                             Icon(
-                                Icons.Default.ArrowForward,
+                                Icons.AutoMirrored.Filled.ArrowForward,
                                 contentDescription = null,
                                 tint = Color.White,
                                 modifier = Modifier.size(18.dp)

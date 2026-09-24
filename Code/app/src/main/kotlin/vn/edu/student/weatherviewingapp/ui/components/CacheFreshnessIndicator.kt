@@ -47,19 +47,19 @@ fun CacheFreshnessIndicator(refreshedAtMillis: Long) {
         "Dữ liệu mới • cập nhật ${formatCacheAge(cacheStatus.ageMillis)} trước"
     }
 
-    Surface(color = backgroundColor, shape = RoundedCornerShape(16.dp)) {
+    Surface(color = backgroundColor, shape = RoundedCornerShape(12.dp)) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 imageVector = if (isStale) Icons.Default.Warning else Icons.Default.CheckCircle,
                 contentDescription = null,
-                modifier = Modifier.size(16.dp),
+                modifier = Modifier.size(12.dp),
                 tint = Color.White
             )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(message, color = Color.White, fontSize = 13.sp)
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(message, color = Color.White, fontSize = 11.sp)
         }
     }
 }
