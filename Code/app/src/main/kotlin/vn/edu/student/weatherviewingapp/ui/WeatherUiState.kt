@@ -11,7 +11,8 @@ sealed interface WeatherUiState {
         val weather: WeatherResponse,
         val forecast: ForecastResponse,
         val airPollution: AirPollutionResponse,
-        val refreshedAtMillis: Long
+        val refreshedAtMillis: Long,
+        val isFromCache: Boolean = false
     ) : WeatherUiState
     data class Error(val message: String) : WeatherUiState
 }
