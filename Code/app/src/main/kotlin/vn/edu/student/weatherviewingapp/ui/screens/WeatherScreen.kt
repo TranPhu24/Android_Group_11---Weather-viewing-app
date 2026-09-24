@@ -2,7 +2,11 @@ package vn.edu.student.weatherviewingapp.ui.screens
 
 import android.Manifest
 import android.app.Activity
+import android.content.Context
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
 import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -52,6 +56,7 @@ import vn.edu.student.weatherviewingapp.ui.components.ForecastRow
 import vn.edu.student.weatherviewingapp.viewmodel.WeatherViewModel
 import vn.edu.student.weatherviewingapp.ui.components.CacheFreshnessIndicator
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,6 +64,27 @@ fun WeatherScreen(
     viewModel: WeatherViewModel = viewModel()
 ) {
     val context = LocalContext.current
+
+    // Mục 10 - Theo dõi trạng thái kết nối mạng.
+    val isOffline = rememberIsOffline()
+
+    // Mục 8 - Lưu và khôi phục đơn vị nhiệt độ người dùng đã chọn.
+    val unitPreferences = remember(context) {
+        context.getSharedPreferences(
+            "unit_settings",
+            Context.MODE_PRIVATE
+        )
+    }
+
+    var temperatureUnit by rememberSaveable {
+        mutableStateOf(
+            unitPreferences.getString(
+                "temperature_unit",
+                "C"
+            ) ?: "C"
+        )
+    }
+
     val keyboardController = LocalSoftwareKeyboardController.current
     var cityInput by rememberSaveable { mutableStateOf("") }
     var showSearch by remember { mutableStateOf(false) }
@@ -359,6 +385,14 @@ fun WeatherScreen(
                         is WeatherUiState.Success -> {
                             WeatherContent(
                                 state = state,
+                                temperatureUnit = temperatureUnit,
+                                isOffline = isOffline,
+                                onUnitChange = { unit ->
+                                    temperatureUnit = unit
+                                    unitPreferences.edit()
+                                        .putString("temperature_unit", unit)
+                                        .apply()
+                                },
                                 onOpen5DaysForecast = { show5DaysForecast = true }
                             )
                         }
@@ -504,6 +538,9 @@ fun WeatherScreen(
 @Composable
 fun WeatherContent(
     state: WeatherUiState.Success,
+    temperatureUnit: String,
+    isOffline: Boolean,
+    onUnitChange: (String) -> Unit,
     onOpen5DaysForecast: () -> Unit
 ) {
     val weather = state.weather
@@ -522,19 +559,85 @@ fun WeatherContent(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            // Mục 10 - Thông báo rõ khi thiết bị ngoại tuyến
+            // hoặc đang hiển thị dữ liệu lấy từ cache.
+            if (isOffline || state.isFromCache) {
+                Surface(
+                    color = Color(0xFFFFF3CD),
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp)
+                    ) {
+                        Text(
+                            text = if (isOffline) {
+                                "Bạn đang ngoại tuyến"
+                            } else {
+                                "Đang hiển thị dữ liệu đã lưu"
+                            },
+                            color = Color(0xFF664D03),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Text(
+                            text = if (isOffline) {
+                                "Không có kết nối Internet. Ứng dụng đang hiển thị dữ liệu thời tiết được lưu gần nhất."
+                            } else {
+                                "Đây là dữ liệu từ lần cập nhật trước."
+                            },
+                            color = Color(0xFF664D03),
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+
             CacheFreshnessIndicator(state.refreshedAtMillis)
 
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "${main.temp.toInt()}°C",
+                text = formatTemperature(
+                    main.temp,
+                    temperatureUnit
+                ),
                 fontSize = 90.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
             )
 
+            // Mục 8 - Chọn °C / °F.
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                FilterChip(
+                    selected = temperatureUnit == "C",
+                    onClick = { onUnitChange("C") },
+                    label = { Text("°C") }
+                )
+
+                FilterChip(
+                    selected = temperatureUnit == "F",
+                    onClick = { onUnitChange("F") },
+                    label = { Text("°F") }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
             Text(
-                text = "${weather.weather.firstOrNull()?.main} ${main.tempMax.toInt()}° / ${main.tempMin.toInt()}°",
+                text = "${weather.weather.firstOrNull()?.main} " +
+                        "${formatTemperature(main.tempMax, temperatureUnit)} / " +
+                        formatTemperature(main.tempMin, temperatureUnit),
                 fontSize = 20.sp,
                 color = Color.White,
                 fontWeight = FontWeight.Medium
@@ -610,16 +713,16 @@ fun WeatherContent(
                                 dayLabel = "Hôm nay",
                                 weatherMain = state.weather.weather.firstOrNull()?.main ?: "",
                                 icon = state.weather.weather.firstOrNull()?.icon ?: "01d",
-                                tempMax = main.tempMax.toInt(),
-                                tempMin = main.tempMin.toInt()
+                                tempMax = convertTemperature(main.tempMax, temperatureUnit).roundToInt(),
+                                tempMin = convertTemperature(main.tempMin, temperatureUnit).roundToInt()
                             )
                         } else {
                             ForecastRow(
                                 dayLabel = summary.dayLabel,
                                 weatherMain = summary.weatherMain,
                                 icon = summary.icon,
-                                tempMax = summary.tempMax,
-                                tempMin = summary.tempMin
+                                tempMax = convertTemperature(summary.tempMax.toDouble(), temperatureUnit).roundToInt(),
+                                tempMin = convertTemperature(summary.tempMin.toDouble(), temperatureUnit).roundToInt()
                             )
                         }
                         if (index < dailySummaries.size - 1) Spacer(modifier = Modifier.height(12.dp))
@@ -652,14 +755,14 @@ fun WeatherContent(
                 Column(modifier = Modifier.padding(14.dp)) {
                     Row(modifier = Modifier.fillMaxWidth()) {
                         StatItem(Modifier.weight(1f), "Độ ẩm", "${main.humidity}%")
-                        StatItem(Modifier.weight(1f), "Cảm giác", "${main.feelsLike.toInt()}°")
+                        StatItem(Modifier.weight(1f), "Cảm giác", formatTemperature(main.feelsLike, temperatureUnit))
                     }
                     HorizontalDivider(
                         color = Color.White.copy(alpha = 0.2f),
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
                     Row(modifier = Modifier.fillMaxWidth()) {
-                        StatItem(Modifier.weight(1f), "Thấp nhất", "${main.tempMin.toInt()}°")
+                        StatItem(Modifier.weight(1f), "Thấp nhất", formatTemperature(main.tempMin, temperatureUnit))
                         StatItem(Modifier.weight(1f), "Áp suất", "${main.pressure} mbar")
                     }
                     HorizontalDivider(
@@ -667,7 +770,7 @@ fun WeatherContent(
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
                     Row(modifier = Modifier.fillMaxWidth()) {
-                        StatItem(Modifier.weight(1f), "Cao nhất", "${main.tempMax.toInt()}°")
+                        StatItem(Modifier.weight(1f), "Cao nhất", formatTemperature(main.tempMax, temperatureUnit))
                         StatItem(Modifier.weight(1f), "Tốc độ gió", "${weather.wind.speed.toInt()}km/h")
                     }
                 }
@@ -676,3 +779,97 @@ fun WeatherContent(
     }
 }
 
+// =====================================================
+// MỤC 8 - UNIT SETTINGS
+// =====================================================
+
+private fun convertTemperature(
+    celsius: Double,
+    unit: String
+): Double {
+    return if (unit == "F") {
+        celsius * 9.0 / 5.0 + 32.0
+    } else {
+        celsius
+    }
+}
+
+private fun formatTemperature(
+    celsius: Double,
+    unit: String
+): String {
+    return "${convertTemperature(celsius, unit).roundToInt()}°$unit"
+}
+
+// =====================================================
+// MỤC 10 - OFFLINE STATUS
+// =====================================================
+
+private fun hasInternet(
+    manager: ConnectivityManager
+): Boolean {
+    val network = manager.activeNetwork ?: return false
+    val capabilities =
+        manager.getNetworkCapabilities(network) ?: return false
+
+    return capabilities.hasCapability(
+        NetworkCapabilities.NET_CAPABILITY_INTERNET
+    ) && capabilities.hasCapability(
+        NetworkCapabilities.NET_CAPABILITY_VALIDATED
+    )
+}
+
+@Composable
+private fun rememberIsOffline(): Boolean {
+    val context = LocalContext.current
+
+    val manager = remember(context) {
+        context.getSystemService(
+            Context.CONNECTIVITY_SERVICE
+        ) as ConnectivityManager
+    }
+
+    var isOffline by remember {
+        mutableStateOf(!hasInternet(manager))
+    }
+
+    DisposableEffect(manager) {
+        val executor = ContextCompat.getMainExecutor(context)
+
+        val callback =
+            object : ConnectivityManager.NetworkCallback() {
+
+                private fun updateStatus() {
+                    executor.execute {
+                        isOffline = !hasInternet(manager)
+                    }
+                }
+
+                override fun onAvailable(network: Network) {
+                    updateStatus()
+                }
+
+                override fun onLost(network: Network) {
+                    updateStatus()
+                }
+
+                override fun onCapabilitiesChanged(
+                    network: Network,
+                    networkCapabilities: NetworkCapabilities
+                ) {
+                    updateStatus()
+                }
+            }
+
+        manager.registerDefaultNetworkCallback(callback)
+        isOffline = !hasInternet(manager)
+
+        onDispose {
+            runCatching {
+                manager.unregisterNetworkCallback(callback)
+            }
+        }
+    }
+
+    return isOffline
+}
