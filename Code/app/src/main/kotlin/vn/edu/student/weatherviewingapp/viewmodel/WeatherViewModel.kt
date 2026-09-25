@@ -6,98 +6,239 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import vn.edu.student.weatherviewingapp.WeatherApplication
 import vn.edu.student.weatherviewingapp.data.LocationResult
-import vn.edu.student.weatherviewingapp.data.WeatherSnapshot
 import vn.edu.student.weatherviewingapp.data.WeatherResponse
+import vn.edu.student.weatherviewingapp.data.WeatherSnapshot
 import vn.edu.student.weatherviewingapp.ui.WeatherUiState
 
-class WeatherViewModel(application: Application) : AndroidViewModel(application) {
+class WeatherViewModel(
+    application: Application
+) : AndroidViewModel(application) {
 
-    private val appContainer = (application as WeatherApplication).container
-    private val repository = appContainer.weatherRepository
-    private val favoriteStore = appContainer.favoriteStore
-    private val weatherSyncManager = appContainer.weatherSyncManager
+    private val appContainer =
+        (application as WeatherApplication).container
 
-    private val _uiState = MutableStateFlow<WeatherUiState>(WeatherUiState.Initial)
-    val uiState: StateFlow<WeatherUiState> = _uiState.asStateFlow()
+    private val repository =
+        appContainer.weatherRepository
 
-    private val _suggestions = MutableStateFlow<List<LocationResult>>(emptyList())
-    val suggestions: StateFlow<List<LocationResult>> = _suggestions.asStateFlow()
+    private val favoriteStore =
+        appContainer.favoriteStore
 
-    private val _favorites = MutableStateFlow<List<LocationResult>>(favoriteStore.loadFavorites())
-    val favorites: StateFlow<List<LocationResult>> = _favorites.asStateFlow()
+    private val weatherSyncManager =
+        appContainer.weatherSyncManager
+
+    private val weatherCache =
+        appContainer.weatherCache
+
+    // =====================================================
+    // UI STATE
+    // =====================================================
+
+    private val _uiState =
+        MutableStateFlow<WeatherUiState>(
+            WeatherUiState.Initial
+        )
+
+    val uiState: StateFlow<WeatherUiState> =
+        _uiState.asStateFlow()
+
+    // =====================================================
+    // SEARCH SUGGESTIONS
+    // =====================================================
+
+    private val _suggestions =
+        MutableStateFlow<List<LocationResult>>(
+            emptyList()
+        )
+
+    val suggestions: StateFlow<List<LocationResult>> =
+        _suggestions.asStateFlow()
+
+    // =====================================================
+    // FAVORITES
+    // =====================================================
+
+    private val _favorites =
+        MutableStateFlow(
+            favoriteStore.loadFavorites()
+        )
+
+    val favorites: StateFlow<List<LocationResult>> =
+        _favorites.asStateFlow()
+
+    // =====================================================
+    // RETRY
+    // =====================================================
 
     private var lastAction: (() -> Unit)? = null
 
+    // =====================================================
+    // INITIALIZATION
+    // =====================================================
+
     init {
-        appContainer.weatherCache.load()?.let { cached ->
-            _uiState.value = WeatherUiState.Success(
-                cached.weather,
-                cached.forecast,
-                cached.airPollution,
-                cached.refreshedAtMillis,
-                isFromCache = true
-            )
+
+        loadCachedWeather()
+
+        observeCacheUpdates()
+
+        weatherCache.load()?.let { cached ->
             refreshCachedWeatherInBackground(cached)
         }
     }
 
+    // =====================================================
+    // CACHE
+    // =====================================================
+
+    /**
+     * Load cached weather and display it immediately.
+     */
+    private fun loadCachedWeather() {
+
+        val cached =
+            weatherCache.load()
+                ?: return
+
+        _uiState.value =
+            WeatherUiState.Success(
+                weather = cached.weather,
+                forecast = cached.forecast,
+                airPollution = cached.airPollution,
+                refreshedAtMillis = cached.refreshedAtMillis,
+                isFromCache = true
+            )
+    }
+
+    private fun observeCacheUpdates() {
+
+        viewModelScope.launch {
+
+            weatherCache.cacheUpdated.collectLatest {
+
+                val updatedSnapshot =
+                    weatherCache.load()
+
+                if (updatedSnapshot != null) {
+
+                    _uiState.value =
+                        WeatherUiState.Success(
+                            weather = updatedSnapshot.weather,
+                            forecast = updatedSnapshot.forecast,
+                            airPollution = updatedSnapshot.airPollution,
+                            refreshedAtMillis =
+                                updatedSnapshot.refreshedAtMillis,
+                            isFromCache = false
+                        )
+                }
+            }
+        }
+    }
+
+    // =====================================================
+    // SEARCH LOCATION
+    // =====================================================
+
     fun searchLocations(query: String) {
+
         if (query.length < 2) {
-            _suggestions.value = emptyList()
+
+            _suggestions.value =
+                emptyList()
+
             return
         }
 
         viewModelScope.launch {
+
             try {
-                val results = repository.searchLocations(query)
-                _suggestions.value = results
-            } catch (e: Exception) {
-                _suggestions.value = emptyList()
+
+                val results =
+                    repository.searchLocations(query)
+
+                _suggestions.value =
+                    results
+
+            } catch (_: Exception) {
+
+                _suggestions.value =
+                    emptyList()
             }
         }
     }
 
     fun clearSuggestions() {
-        _suggestions.value = emptyList()
+
+        _suggestions.value =
+            emptyList()
     }
 
-    fun toggleFavorite(location: LocationResult) {
-        val current = _favorites.value.toMutableList()
+    // =====================================================
+    // FAVORITES
+    // =====================================================
+
+    fun toggleFavorite(
+        location: LocationResult
+    ) {
+
+        val current =
+            _favorites.value.toMutableList()
+
         val existingIndex =
             current.indexOfFirst {
+
                 it.lat == location.lat &&
                         it.lon == location.lon
             }
 
         if (existingIndex >= 0) {
+
             current.removeAt(existingIndex)
+
         } else {
+
             current.add(location)
         }
 
-        _favorites.value = current
-        favoriteStore.saveFavorites(current)
+        _favorites.value =
+            current
+
+        favoriteStore.saveFavorites(
+            current
+        )
     }
 
     fun isFavorite(
         lat: Double,
         lon: Double
     ): Boolean {
+
         return _favorites.value.any {
+
             it.lat == lat &&
                     it.lon == lon
         }
     }
 
+    // =====================================================
+    // API KEY
+    // =====================================================
+
     private fun isApiKeyInvalid(): Boolean {
+
+        val apiKey =
+            vn.edu.student.weatherviewingapp
+                .BuildConfig
+                .WEATHER_API_KEY
+
         if (
-            vn.edu.student.weatherviewingapp.BuildConfig.WEATHER_API_KEY ==
-            "YOUR_API_KEY_HERE" ||
-            vn.edu.student.weatherviewingapp.BuildConfig.WEATHER_API_KEY.isBlank()
+            apiKey == "YOUR_API_KEY_HERE" ||
+            apiKey.isBlank()
         ) {
+
             _uiState.value =
                 WeatherUiState.Error(
                     "Please provide OPEN_WEATHER_API_KEY in local.properties"
@@ -109,17 +250,28 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
         return false
     }
 
+    // =====================================================
+    // RETRY
+    // =====================================================
+
     fun retry() {
+
         lastAction?.invoke()
     }
+
+    // =====================================================
+    // ERROR MESSAGE
+    // =====================================================
 
     private fun getFriendlyErrorMessage(
         e: Exception
     ): String {
 
-        val msg = e.localizedMessage ?: ""
+        val msg =
+            e.localizedMessage ?: ""
 
         return when {
+
             e is java.net.UnknownHostException ->
                 "Không có kết nối mạng. Vui lòng kiểm tra kết nối Wifi/3G của bạn."
 
@@ -143,8 +295,17 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun fetchWeather(city: String) {
-        if (city.isBlank()) return
+    // =====================================================
+    // FETCH WEATHER BY CITY
+    // =====================================================
+
+    fun fetchWeather(
+        city: String
+    ) {
+
+        if (city.isBlank()) {
+            return
+        }
 
         lastAction = {
             fetchWeather(city)
@@ -164,15 +325,20 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
                 val weather =
                     repository.getWeather(city)
 
-                fetchFullWeatherData(weather)
+                fetchFullWeatherData(
+                    weather
+                )
 
             } catch (e: Exception) {
 
-                // Mục 10 - Offline Cache
                 showCacheOrError(e)
             }
         }
     }
+
+    // =====================================================
+    // FETCH WEATHER BY COORDINATES
+    // =====================================================
 
     fun fetchWeatherByCoords(
         lat: Double,
@@ -181,10 +347,11 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
     ) {
 
         lastAction = {
+
             fetchWeatherByCoords(
-                lat,
-                lon,
-                name
+                lat = lat,
+                lon = lon,
+                name = name
             )
         }
 
@@ -223,14 +390,13 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
 
             } catch (e: Exception) {
 
-                // Mục 10 - Offline Cache
                 showCacheOrError(e)
             }
         }
     }
 
     // =====================================================
-    // MỤC 10 - OFFLINE CACHE
+    // OFFLINE CACHE
     // =====================================================
 
     private fun showCacheOrError(
@@ -238,12 +404,10 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
     ) {
 
         val cached =
-            appContainer.weatherCache.load()
+            weatherCache.load()
 
         if (cached != null) {
 
-            // Có dữ liệu cache:
-            // tiếp tục hiển thị dữ liệu gần nhất.
             _uiState.value =
                 WeatherUiState.Success(
                     weather = cached.weather,
@@ -256,8 +420,6 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
 
         } else {
 
-            // Chưa có cache:
-            // hiển thị lỗi như bình thường.
             _uiState.value =
                 WeatherUiState.Error(
                     getFriendlyErrorMessage(
@@ -266,6 +428,10 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
                 )
         }
     }
+
+    // =====================================================
+    // FULL WEATHER DATA
+    // =====================================================
 
     private suspend fun fetchFullWeatherData(
         weather: WeatherResponse
@@ -279,13 +445,18 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
 
         _uiState.value =
             WeatherUiState.Success(
-                snapshot.weather,
-                snapshot.forecast,
-                snapshot.airPollution,
-                snapshot.refreshedAtMillis,
+                weather = snapshot.weather,
+                forecast = snapshot.forecast,
+                airPollution = snapshot.airPollution,
+                refreshedAtMillis =
+                    snapshot.refreshedAtMillis,
                 isFromCache = false
             )
     }
+
+    // =====================================================
+    // REFRESH CACHED WEATHER
+    // =====================================================
 
     private fun refreshCachedWeatherInBackground(
         cached: WeatherSnapshot
@@ -307,9 +478,12 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
 
             } catch (_: Exception) {
 
-                // Keep displaying the cache;
-                // its age banner tells the user
-                // it could not be refreshed.
+                /*
+                 * Keep displaying the cached data.
+                 *
+                 * The UI can use refreshedAtMillis to show
+                 * the cache age / stale status.
+                 */
             }
         }
     }

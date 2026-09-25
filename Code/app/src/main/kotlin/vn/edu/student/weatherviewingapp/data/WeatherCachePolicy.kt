@@ -9,7 +9,6 @@ data class CacheStatus(
     val ageMillis: Long
 )
 
-/** Defines when cached weather should be presented as out of date to the user. */
 object WeatherCachePolicy {
     private val staleAfterMillis = TimeUnit.MINUTES.toMillis(30)
 
