@@ -356,4 +356,4 @@ Android_Group_11---Weather-viewing-app/
 
 # Testing(Sheet): https://1drv.ms/x/c/8c38ac15479b7ff7/IQB5zTs5oXHrT5f8RHyWIDcRAaD9aBq1FmAchLV-SpkZxXo?e=Y3Wog6
 
-# Doc (báo cáo): https://1drv.ms/w/c/8c38ac15479b7ff7/IQBr-7tREnRxSJJ2C7P1NibLAdT0qOly9CVy8p_k-6WWIH0?e=9Hdpbl
+# Doc (báo cáo): [https://1drv.ms/w/c/8c38ac15479b7ff7/IQBr-7tREnRxSJJ2C7P1NibLAdT0qOly9CVy8p_k-6WWIH0?e=9Hdpbl](https://1drv.ms/w/c/8c38ac15479b7ff7/IQBoyJy119M1RrkOt64O8_xBAUdIhq_X4N6x8LgAHOHquS0?e=9uuBV4)
